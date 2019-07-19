@@ -37,7 +37,10 @@
     `git push -u origin feature_branch_name`
 
 # Get a existing branch on GitHub that is NOT yet on your machine locally
-1.  `git checkout -b feature_branch_localname origin/feature_branch_remotename`
+0. to check all branch (even the remote):
+    `git branch -a` (you should see the branch that you want e.g. "origin/feature_branch_remotename")
+1.  Get the remote branch locally
+	`git checkout -b feature_branch_localname origin/feature_branch_remotename`
 	example: `git checkout -b test origin/test`
 
 # Git merge branch into master (or other)
