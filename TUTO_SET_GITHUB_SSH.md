@@ -39,11 +39,14 @@ git config --global user.email johndoe@example.com
 
 # Git Branch locally and put it on github GitHub (if you want develop new features)
 
+0. (optional) To make things easier, and have the same name locally and remote without setting the upstream
+ `git config --global push.default current`
 1. Create a new branch:
     `git checkout -b feature_branch_name`
 2. Edit, add and commit your files.
 3. Push your branch to the remote repository:
-    `git push -u origin feature_branch_name`
+    (normal) `git push -u origin feature_branch_name`
+    (if you done step 0.) `git push -u`
 
 # Get a existing branch on GitHub that is NOT yet on your machine locally
 0. to check all branch (even the remote):
