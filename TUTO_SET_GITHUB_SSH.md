@@ -1,5 +1,14 @@
 #TUTO BEAUTÉ GITHUB
 
+# setting git
+1. install git on your computer
+2. open terminal
+3. set your configuration
+```
+git config --global user.name "John Doe"
+git config --global user.email johndoe@example.com
+```
+
 # create repo (if you want a NEW repo)
 1. create in GitHub
 2. `git init`
