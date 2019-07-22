@@ -20,8 +20,8 @@ git config --global user.email johndoe@example.com
 
 # set ssh  (if it is the first time you access GitHub or have a access denial)
 0. read https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-1. open terminal
-2. c`reate key $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`
+1. open terminal/git bash
+2. `create key $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`
 3. go to your users/.ssh/ folder (hidden folder)
 4. open and copy content of users/.ssh/id_rsa.pub
 5. go to https://github.com/settings/keys
