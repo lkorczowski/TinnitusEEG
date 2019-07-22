@@ -12,8 +12,9 @@ Output:
 PROPERTY OF Zeta Technologies
 CONFIDENTIAL
 
-last version: DRAFT v0.4 (2019-07-17)
+last version: DRAFT v0.5 (2019-07-19)
 history:
+    | v0.5 2019-07-19 correction of timing
     | v0.4 2019-07-17 TF statistical test and GFP
     | v0.3 2019-07-16 epoch extraction and TF vizualization
     | v0.2 2019-07-15 annotation to events convertion
@@ -24,17 +25,14 @@ history:
 if __name__ == '__main__':
     import os, sys
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    #parent_dir = os.path.dirname(current_dir)
     sys.path.append(current_dir)
     import zeta
 
     #import matplotlib.pyplot as plt
     import mne
     import numpy as np
-    import pandas as pd
-    import seaborn as sns
     import socket
-    from pathlib import Path
+    from pathlib import Path #should be used instead of os.path.join
     from itertools import compress
     import matplotlib.pyplot as plt
     #%%
@@ -49,14 +47,12 @@ if __name__ == '__main__':
         print("not configured")
     elif configID=='Crimson-Box':
          os.chdir("F:\\python\\zeta\\code")
-         #git_dir="C:\\Users\\VroomBox\\git"
          data_dir = os.path.join("F:\\","data",'Zeta') #gitlab "freiburg" directory
-         fig_dir = "F:\\python\\zeta\\results\\"
+         fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
     elif configID=='MacBook-Pro-de-Louis.local':
-         os.chdir("/Volumes/Extreme SSD/python/zeta/code")
-         #git_dir="C:\\Users\\VroomBox\\git"
-         data_dir = os.path.join("/Volumes/Extreme SSD/","data",'Zeta') #gitlab "freiburg" directory
-         fig_dir = "/Volumes/Extreme SSD/python/zeta/results/"
+         os.chdir("/Volumes/Ext/python/zeta/code")
+         data_dir = os.path.join("/Volumes/Ext/","data",'Zeta') #gitlab "freiburg" directory
+         fig_dir = "/Volumes/Ext/python/zeta/results/"
     else:
         print('config not recognize, please add the path of your git directories')
     #WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
@@ -113,8 +109,7 @@ if __name__ == '__main__':
     subjects=cong.keys()
     
     
-    
-    for subject in [list(subjects)[2]]: # subject in list(subjects): # 
+    for subject in [list(subjects)[1]]: # subject in list(subjects): # 
         fig_dir_sub=fig_dir+subject+os.path.sep
         if not os.path.exists(fig_dir_sub):
             os.makedirs(fig_dir_sub) #create results directory if needed
@@ -184,8 +179,8 @@ if __name__ == '__main__':
         # %% GFP analysis
         plt.close('all')
         reject=dict(eeg=120)
-        event_id, tmin, tmax = 0, 4.5, 7.
-        baseline = (4.5,5.0)
+        event_id, tmin, tmax = 0, 5.1, 7.6
+        baseline = (5.1,5.6)
         iter_freqs = [
             ('Theta', 4, 7),
             ('Alpha', 8, 12),
@@ -220,8 +215,8 @@ if __name__ == '__main__':
         events1=tmp[0][tmp[1],:]
         
         #extract epochs
-        event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0, 7.
-        baseline = (None,5.0)
+        event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0.6, 7.6
+        baseline = (None,5.6)
         reject=dict(eeg=120)
         epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
                             reject=reject, preload=True,reject_by_annotation=0,
