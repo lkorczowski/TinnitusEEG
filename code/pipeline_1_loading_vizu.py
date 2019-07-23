@@ -43,22 +43,20 @@ if __name__ == '__main__':
     """" CONFIGURE PATHS 
     This section will be integrate into zeta module with a use of 
     config file prepared for each computer."""
-    resultsID='pipeline_1' #set ID for output directory (will remplace any former results with same ID)
+    resultsID='pipeline_1_raw' #set ID for output directory (will remplace any former results with same ID)
         
     #for automatic folder path use, add the elif: for your machine ID below
     configID=socket.gethostname()
     if configID=='your_machine_name':
         print("not configured")
     elif configID=='Crimson-Box':
-         os.chdir("F:\\python\\zeta\\code")
-         #git_dir="C:\\Users\\VroomBox\\git"
+         os.chdir("F:\\git\\TinnitusEEG\\code")
          data_dir = os.path.join("F:\\","data",'Zeta') #gitlab "freiburg" directory
-         fig_dir = "F:\\python\\zeta\\results\\"
+         fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
     elif configID=='MacBook-Pro-de-Louis.local':
-         os.chdir("/Volumes/Extreme SSD/python/zeta/code")
-         #git_dir="C:\\Users\\VroomBox\\git"
-         data_dir = os.path.join("/Volumes/Extreme SSD/","data",'Zeta') #gitlab "freiburg" directory
-         fig_dir = "/Volumes/Extreme SSD/python/zeta/results/"
+         os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
+         data_dir = os.path.join("/Volumes/Ext/","data",'Zeta') #gitlab "freiburg" directory
+         fig_dir = "/Volumes/Ext/python/zeta/results/"
     else:
         print('config not recognize, please add the path of your git directories')
     #WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
@@ -80,7 +78,7 @@ if __name__ == '__main__':
 
     subjects=subjectsdict.keys()
 
-    for subject in [list(subjects)[2]]: # subject in list(subjects): # 
+    for subject in list(subjects): # subject in list(subjects): # 
         fig_dir_sub=fig_dir+subject+os.path.sep
         if not os.path.exists(fig_dir_sub):
             os.makedirs(fig_dir_sub) #create results directory if needed
@@ -96,7 +94,7 @@ if __name__ == '__main__':
         raw_0,raw_1=zeta.data.datasets.get_raw(datasetfolder,subject)
         raw_0.load_data();raw_1.load_data()
         
-        argfilter=dict(l_freq=1,h_freq=40,n_jobs=2)
+        argfilter=dict(l_freq=4,h_freq=40,n_jobs=2,method='iir')
         raw_0.filter(**argfilter)
         raw_1.filter(**argfilter)
         #rename table for event to annotations
@@ -108,7 +106,7 @@ if __name__ == '__main__':
         
         # %% GFP analysis
         plt.close('all')
-        reject=dict(eeg=50)
+        reject=dict(eeg=120)
         event_id, tmin, tmax = 0, 4.5, 7.
         baseline = (4.5,5.0)
         iter_freqs = [
@@ -141,7 +139,7 @@ if __name__ == '__main__':
         #extract epochs
         event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0, 7.
         baseline = (None,5.0)
-        reject=dict(eeg=250)
+        reject=dict(eeg=300)
         epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
                             reject=reject, preload=True,reject_by_annotation=0,
                             verbose=verbose)
@@ -225,6 +223,4 @@ if __name__ == '__main__':
             
             plt.show()
             plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
-    
-    
-    
+        
