@@ -58,6 +58,8 @@ git config --global user.email johndoe@example.com
 # Git merge branch into master (or other)
 
 1. `git checkout master`(this is the output folder)
-2. `git merge feature_branch_name`(will merge the feature_branch into master)
-3. If you don't need the feature_branch anymore, you can delete it:
+2. `git merge feature_branch_name -m "merge description"`(will merge the feature_branch into master)
+3. (optional) If you don't need the feature_branch anymore, you can delete it:
    `git branch -d feature_branch_name`
+4. `git push` to push the merge to the remote
+5.  (optional if 3 done) `git push origin -d feature_branch_name` 
