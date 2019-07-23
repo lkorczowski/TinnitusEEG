@@ -12,8 +12,9 @@ Output:
 PROPERTY OF Zeta Technologies
 CONFIDENTIAL
 
-last version: DRAFT v0.4 (2019-07-17)
+last version: DRAFT v0.6 (2019-07-24)
 history:
+    | v0.6 2019-07-24 integration with datasets module
     | v0.4 2019-07-17 TF statistical test and GFP
     | v0.3 2019-07-16 epoch extraction and TF vizualization
     | v0.2 2019-07-15 annotation to events convertion
@@ -34,7 +35,8 @@ if __name__ == '__main__':
     import pandas as pd
     import seaborn as sns
     import socket
-    from pathlib import Path
+    import pandas as pd
+    from pathlib import Path #should be used instead of os.path.join
     from itertools import compress
     import matplotlib.pyplot as plt
     #%%
@@ -65,55 +67,19 @@ if __name__ == '__main__':
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir) #create results directory if needed
     
-    """
-    subjects=['patientPC', '5CA09', '05AY22', 'patient', '05GS16', '04MM25', 
-          '1TG01', '05RP24', '3QO03', '5CD05', '5DN04', '05IN17', '05VP19', 
-          'GS', '05MP21', '5DL08', '05BY20', '05DF18', '05MV11', '5NA09',
-          'CQ', '5BB03', '05FV18', '5BY10', '04LK03', '04LM02', '05RM12',
-          '2SN14', 'QE', '3NT07', '5GF07']  #obsolete, generated below
-    # please note that 'patient_CR' is NOT a good name as the sparse with '_' is not
-    # compatible with the other files. I recommand renamed it to 'patientCR' or 'CR'
-    """
-    
     # %%
     """ DATA LOADING 
     this section will load data and extract the epochs with conditions.
     """
-    subject=1
-    patient =2 #patient group (static for a given dataset)
-    session =9 #6 = 1 old remplacer apres (session 'high')
-    ses2=8  # (session 'low')
-    datasetname="raw_clean_32"
-    ShowFigures=1
     
-    names = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(session)))
-    names2 = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(ses2)))
+    datasetname="data_raw"
+    ShowFigures=True
     
-    pat=[]
-    pat2=[]
-    for name in names:
-        #print name.split('_')[0]
-        pat.append(name.split('_')[0]) #all subjects ID from names
-    for name in names2:
-        #print name.split('_')[0]
-        pat2.append(name.split('_')[0]) #all subjects ID from names2
-        
-    cong={} #build of dictionnary of all session for each subject
-    for name in names2:
-            if pat.__contains__(name.split('_')[0]):
-                if cong.keys().__contains__(name.split('_')[0]):
-                    cong[name.split('_')[0]].append(name) #add file to the list
-                else:
-                    cong[name.split('_')[0]]=[name] #add first file to the list
-    for name in names:
-            if pat2.__contains__(name.split('_')[0]):
-                cong[name.split('_')[0]].append(name)
-    
-    t=["exacerb","absente","partielle","totale"]
-    subjects=cong.keys()
-    
-    
-    
+    datasetfolder=os.path.join(data_dir, datasetname)+os.path.sep
+    subjectsdict=zeta.data.datasets.get_subjects(datasetfolder)
+
+    subjects=subjectsdict.keys()
+
     for subject in [list(subjects)[2]]: # subject in list(subjects): # 
         fig_dir_sub=fig_dir+subject+os.path.sep
         if not os.path.exists(fig_dir_sub):
@@ -126,64 +92,23 @@ if __name__ == '__main__':
         everything is working fine with mne.
         For classification, it is adviced to keep data in µV.
         """
-        runs=[]
-        labels=[]
-        events=[]
-        for root, dirs, files in os.walk(os.path.join(data_dir,datasetname)):
-            for file in files:
-                if file.startswith(subject):
-                    filepath=os.path.join(root,file)
-                    runs.append(mne.io.read_raw_fif(filepath)) #load data
-                    #events=mne.read_events(filepath)
-                    labels.append(file.split('_')[1])
-                    
-        eventscode=dict(zip(np.unique(runs[0]._annotations.description),[0,1]))
-        #events=mne.events_from_annotations(runs[0])       
-                
-        runs_0=list(compress(runs,[x=='low' for x in labels]))
-        runs_1=list(compress(runs,[x=='high' for x in labels]))
         
-        raw_0=mne.concatenate_raws(runs_0)
-        raw_1=mne.concatenate_raws(runs_1)
-    
+        raw_0,raw_1=zeta.data.datasets.get_raw(datasetfolder,subject)
+        raw_0.load_data();raw_1.load_data()
+        
+        argfilter=dict(l_freq=1,h_freq=40,n_jobs=2)
+        raw_0.filter(**argfilter)
+        raw_1.filter(**argfilter)
         #rename table for event to annotations
-        event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
+        event_id_all = {'STIM_low': 0,'STIM_high': 1, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
         
-        #vizualization
         if ShowFigures:
-            scalings=dict(eeg=10e1)
-            mne.viz.plot_raw(raw_0,scalings=scalings)
-        
-        timestamps=np.round(raw_0._annotations.onset*raw_0.info['sfreq']).astype(int)
-        
-        raw_0._annotations.duration
-        event_id = {'BAD_data': 0, 'bad EPOCH': 100}
-        
-        labels=raw_0._annotations.description
-        labels=np.vectorize(event_id0.__getitem__)(labels) #convert labels into int
-        
-        events=np.concatenate((timestamps.reshape(-1,1),
-                                   np.zeros(timestamps.shape).astype(int).reshape(-1,1),
-                                   labels.reshape(-1,1)),axis=1)
-        # events visualation
-        if ShowFigures:
-            color = {0: 'green', 100: 'red'}
-            mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
-                            event_id=event_id)
-            
-        # the difference between two full stimuli windows should be 7 sec. 
-        raw_0.n_times
-        events=events[events[:,2]==0,:] #keep only auditory stimuli
-        stimt=np.append(events[:,0],raw_0.n_times) #stim interval
-        epoch2keep=np.where(np.diff(stimt)==3500)[0] #keep only epoch of 7sec
-        epoch2drop=np.where(np.diff(stimt)!=3500)[0]
-        events=events[epoch2keep,:]
-        
-        
+            mne.viz.plot_raw(raw_0,scalings=dict(eeg=5e1))
+            mne.viz.plot_raw(raw_1,scalings=dict(eeg=5e1))
         
         # %% GFP analysis
         plt.close('all')
-        reject=dict(eeg=120)
+        reject=dict(eeg=50)
         event_id, tmin, tmax = 0, 4.5, 7.
         baseline = (4.5,5.0)
         iter_freqs = [
@@ -193,43 +118,37 @@ if __name__ == '__main__':
             ('Gamma', 30, 45)
         ]
         verbose='ERROR'
-        tmp=zeta.data.stim.get_events(raw_0,event_id0)
+        tmp=zeta.data.stim.get_events(raw_0,event_id_all)
         events0=tmp[0][tmp[1],:]
-        
-        options=dict(iter_freqs=iter_freqs,baseline=baseline,
-                               event_id=event_id,tmin=tmin, tmax=tmax,reject=reject,
-                               verbose=verbose)
-        out0=zeta.analysis.freq.GFP(raw_0,events0,**options)
-        
-        out0[1].savefig(fig_dir_sub+'gfp0',dpi=300)
-        tmp=zeta.data.stim.get_events(raw_1,event_id0)
+        tmp=zeta.data.stim.get_events(raw_1,event_id_all)
         events1=tmp[0][tmp[1],:]
         
-        out1=zeta.analysis.freq.GFP(raw_1,events1,**options)
+        options=dict(iter_freqs=iter_freqs,baseline=baseline,
+                               tmin=tmin, tmax=tmax,reject=reject,
+                               verbose=verbose)
+        
+        out0=zeta.analysis.freq.GFP(raw_0,events0,event_id=0,**options)
+        out0[1].savefig(fig_dir_sub+'gfp0',dpi=300)
+
+        
+        out1=zeta.analysis.freq.GFP(raw_1,events1,event_id=1,**options)
         out1[1].savefig(fig_dir_sub+'gfp1',dpi=300)
-    
+        
         
         # %% D Time-Frequency analysis
         plt.close('all')
-        #extract events from annotations
-        event_id0={'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-        event_id1={'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-        tmp=zeta.data.stim.get_events(raw_0,event_id0)
-        events0=tmp[0][tmp[1],:]
-        tmp=zeta.data.stim.get_events(raw_1,event_id1)
-        events1=tmp[0][tmp[1],:]
         
         #extract epochs
         event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0, 7.
         baseline = (None,5.0)
-        reject=dict(eeg=120)
+        reject=dict(eeg=250)
         epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
                             reject=reject, preload=True,reject_by_annotation=0,
                             verbose=verbose)
     
         epochs1 = mne.Epochs(raw_1, events1, event_id1, tmin, tmax, baseline=baseline,
                         reject=reject, preload=True,reject_by_annotation=0,
-                        verbose=verbose)    
+                        verbose=True)    
         
         options=dict(iter_freqs=iter_freqs,baseline=baseline,
                      tmin=tmin, tmax=tmax,ch_name='cz')
@@ -242,6 +161,7 @@ if __name__ == '__main__':
         out1[2].savefig(fig_dir_sub+'TF1_high',dpi=300)
         out1[3].savefig(fig_dir_sub+'TF2_high',dpi=300)
         out1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
+        
         # %% E Cluster-based TF statistics for each electrode
         #parameters
         plt.close('all')

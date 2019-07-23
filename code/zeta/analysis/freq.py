@@ -10,6 +10,7 @@ def GFP(raw,events,
         baseline=(None,0),
         iter_freqs=None,
         reject=None,
+        n_jobs=2,
         verbose=None
         ):
     """ Global Field Power analysis from events. 
@@ -83,12 +84,12 @@ def GFP(raw,events,
         rawc = raw.copy()
         rawc.load_data(verbose=verbose)
         # bandpass filter and compute Hilbert
-        rawc.filter(fmin, fmax, n_jobs=2,  # use more jobs to speed up.
+        rawc.filter(fmin, fmax, n_jobs=n_jobs,  # use more jobs to speed up.
                    l_trans_bandwidth=1,  # make sure filter params are the same
                    h_trans_bandwidth=1,  # in each band and skip "auto" option.
                    fir_design='firwin',
                    verbose=verbose)
-        rawc.apply_hilbert(n_jobs=1, envelope=False,verbose=verbose)
+        rawc.apply_hilbert(n_jobs=n_jobs, envelope=False,verbose=verbose)
     
         epochs = mne.Epochs(rawc, events, event_id, tmin, tmax, baseline=baseline,
                             reject=reject, preload=True,reject_by_annotation=0,
