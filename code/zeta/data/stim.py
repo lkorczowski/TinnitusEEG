@@ -1,7 +1,7 @@
 """Zeta stimulis and annotation convertion"""
 import numpy as np
 
-def get_events(raw,event_id):
+def get_events(raw,event_id,offset=0):
     """ Get events from specific Zeta dataset. 
         Events are extracted from annotations.
         example:
@@ -19,6 +19,9 @@ def get_events(raw,event_id):
           example: 
               # only annotation with 'BAD_data' are translated into events
               event_id = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
+    offset : int (default=0)
+        Apply an offset in sample to all events. Example:
+            offset=-60 will shift all events to 60 samples before the annotation
 
     Returns
     ----------
@@ -42,8 +45,8 @@ def get_events(raw,event_id):
     
     """
     #extract time stamps from annotations
-    timestamps=np.round(raw._annotations.onset*raw.info['sfreq']).astype(int)
-    
+    timestamps=np.round(raw._annotations.onset*raw.info['sfreq']+offset).astype(int)
+    assert np.all(timestamps<raw.n_times), "offset overflow total data length"
     #get labels
     labels=raw._annotations.description
     labels=np.vectorize(event_id.__getitem__)(labels) #convert labels into int

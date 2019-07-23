@@ -150,7 +150,7 @@ def TF(epochs,
         Start and End time of selection in seconds.
     baseline : tuple of length 2 (default=(None,0))
         The time interval to apply baseline correction. 
-    ch_name : str
+    ch_name : str 
         A channel name for the plot example
     iter_freqs : list of tuple | None (default=[('Theta', 4, 7),('Alpha', 8, 12),('Beta', 13, 25),('Gamma', 30, 45)])
         each frequency band used for the analysis
@@ -206,20 +206,23 @@ def TF(epochs,
     n_cycles = freqs / 2.  # different number of cycle per frequency
     powers, itc =  mne.time_frequency.tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles, use_fft=True,
                             return_itc=True, decim=1, n_jobs=n_jobs)
-    topomap_args = dict(sensors=False, baseline=(None, 0),
-                        colorbar=False,tmin=0.4,tmax=0.8,mode=mode,show=False)
-    fig1=powers.plot_topo(baseline=(None, 0), mode=mode, title='Average power')
+    topomap_args = dict(sensors=False, baseline=baseline,
+                        colorbar=False,tmin=tmin,tmax=tmax,mode=mode,show=False)
+    
+    # TF value on the topographic map
+    fig1=powers.plot_topo(baseline=baseline, mode=mode, title='Average power')
 
+    # TF value for an electrode example
+    # TODO: REMOVE or EXPEND to all electrodes (not that usefull as fig1 do the job)
     fig2=powers.plot([powers.ch_names.index(ch_name)], baseline=baseline, mode=mode, title=ch_name)
     
-    
+    # topomap for each frequency band
     fig3, axis = plt.subplots(1, len(iter_freqs), figsize=(7, 4))
     it=0
     for band, fmin, fmax in iter_freqs:
         powers.plot_topomap(fmin=fmin, fmax=fmax, title=band, axes=axis[it],
                             **topomap_args)
         it=it+1
-
     mne.viz.tight_layout()
 
     return powers, itc,fig1,fig2,fig3

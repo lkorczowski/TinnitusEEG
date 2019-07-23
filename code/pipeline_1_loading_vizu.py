@@ -46,11 +46,11 @@ if __name__ == '__main__':
     if configID=='your_machine_name':
         print("not configured")
     elif configID=='Crimson-Box':
-         os.chdir("F:\\python\\zeta\\code")
+         os.chdir("F:\\git\\TinnitusEEG\\code")
          data_dir = os.path.join("F:\\","data",'Zeta') #gitlab "freiburg" directory
          fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
     elif configID=='MacBook-Pro-de-Louis.local':
-         os.chdir("/Volumes/Ext/python/zeta/code")
+         os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
          data_dir = os.path.join("/Volumes/Ext/","data",'Zeta') #gitlab "freiburg" directory
          fig_dir = "/Volumes/Ext/python/zeta/results/"
     else:
@@ -181,6 +181,7 @@ if __name__ == '__main__':
         reject=dict(eeg=120)
         event_id, tmin, tmax = 0, 5.1, 7.6
         baseline = (5.1,5.6)
+        offset=raw_0.info['sfreq']*0.6
         iter_freqs = [
             ('Theta', 4, 7),
             ('Alpha', 8, 12),
@@ -188,8 +189,8 @@ if __name__ == '__main__':
             ('Gamma', 30, 45)
         ]
         verbose='ERROR'
-        tmp=zeta.data.stim.get_events(raw_0,event_id0)
-        events0=tmp[0][tmp[1],:]
+        tmp=zeta.data.stim.get_events(raw_0,event_id0,offset=0)
+        events0=tmp[0][tmp[1],:] #keep only good data
         
         options=dict(iter_freqs=iter_freqs,baseline=baseline,
                                event_id=event_id,tmin=tmin, tmax=tmax,reject=reject,
@@ -239,8 +240,9 @@ if __name__ == '__main__':
         out1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
         # %% E Cluster-based TF statistics for each electrode
         #parameters
+        assert False
         plt.close('all')
-        for ch_name in epochs0.info['ch_names']:
+        for ch_name in ['t7']:#epochs0.info['ch_names']:#
             decim=1
             freqs = np.arange(0.5, 40, 0.5) 
             n_cycles = freqs / 2.
@@ -257,8 +259,8 @@ if __name__ == '__main__':
                                       n_cycles=n_cycles, decim=decim,
                                       return_itc=False, average=False)
             
-            epochs_power_0 = tfr_epochs_0.data[:, 0, :, :]  # only Pz channel as 3D matrix
-            epochs_power_1 = tfr_epochs_1.data[:, 0, :, :]  # only Pz channel as 3D matrix
+            epochs_power_0 = tfr_epochs_0.data[:, 0, :, :]  # only ch_name channel as 3D matrix
+            epochs_power_1 = tfr_epochs_1.data[:, 0, :, :]  # only ch_name channel as 3D matrix
             
             #compute permutation test (cluster-based)
             threshold = None
