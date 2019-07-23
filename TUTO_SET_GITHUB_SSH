@@ -1,0 +1,26 @@
+#TUTO BEAUTÉ GITHUB
+
+# create repo
+
+1. create in GitHub
+2. >git init
+3. >git add
+4. >git commit -m "my message"
+5. git remote add origin git@github.com:username/new_repo
+6. git push --set-upstream origin master (wont work until ssh done)
+7. read set ssh if it doesnt work and try 6. again
+
+#set ssh 
+0. read https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
+1. open terminal
+2. create key $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
+3. go to your users/.ssh/ folder (hidden folder)
+4. open and copy content of users/.ssh/id_rsa.pub
+5. go to https://github.com/settings/keys
+6. new SSH key
+7. give a title for your machine and paste the id_rsa.pub content
+
+
+
+git clone URL
+
