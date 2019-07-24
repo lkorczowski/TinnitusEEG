@@ -57,6 +57,10 @@ git config --global user.email johndoe@example.com
 
 # Git merge branch into master (or other)
 
+1. (better than the option below). USE PULL REQUEST FROM GITHUB AND ASK A CODE REVIEW (assign someone)
+
+OR (only for small changes that doesn't require a pull request and code review)
+
 1. `git checkout master`(this is the output folder)
 2. `git merge feature_branch_name -m "merge description"`(will merge the feature_branch into master)
 3. (optional) If you don't need the feature_branch anymore, you can delete it:
