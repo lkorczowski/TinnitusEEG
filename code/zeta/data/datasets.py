@@ -1,7 +1,7 @@
 """Zeta datasets"""
 
 def get_data_list(data_folder):
-	"""loads the list of data from a given folder
+    """loads the list of data from a given folder
 
     Parameters
     ----------

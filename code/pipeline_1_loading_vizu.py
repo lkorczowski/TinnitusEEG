@@ -240,7 +240,6 @@ if __name__ == '__main__':
         out1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
         # %% E Cluster-based TF statistics for each electrode
         #parameters
-        assert False
         plt.close('all')
         for ch_name in ['t7']:#epochs0.info['ch_names']:#
             decim=1
@@ -302,6 +301,8 @@ if __name__ == '__main__':
             
             plt.show()
             plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
+            
+            assert False
     
     
     
