@@ -2,6 +2,12 @@
 import os
 from itertools import compress
 import mne 
+import pickle
+
+def open_dict(name):
+    with open(name, 'rb') as handle:
+        b = pickle.load(handle)
+    return(b)
 
 def get_subjects(data_folder,verbose=False):
     """loads the list of data from a given folder
@@ -49,7 +55,7 @@ def get_subjects(data_folder,verbose=False):
     if verbose: print("voici les patients des tests" + str(cong.keys()))
     return cong
 
-def get_raw(data_folder, subject, dico=None, cropping=0,adjust_record_length=False):
+def get_raw(data_folder, subject, dico=None, cropping=0,adjust_record_length=False, interpolate = False):
     """loads and returns the raws associated with a subject within a database
 
     Parameters
@@ -75,7 +81,7 @@ def get_raw(data_folder, subject, dico=None, cropping=0,adjust_record_length=Fal
             if file.startswith(subject):
                 filepath=os.path.join(root,file)
                 # loads the annotated data
-                runs.append(_annotate_audio(mne.io.read_raw_fif(filepath), cropping = cropping, adjust_record_length=adjust_record_length))
+                runs.append(_annotate_audio(mne.io.read_raw_fif(filepath), cropping = cropping, adjust_record_length=adjust_record_length, interpolate = interpolate))
                 labels.append(file.split('_')[1])
                       
             
@@ -87,7 +93,7 @@ def get_raw(data_folder, subject, dico=None, cropping=0,adjust_record_length=Fal
     return raw_0, raw_1
     
     
-def _annotate_audio(RAW, cropping = 0, adjust_record_length=False):
+def _annotate_audio(RAW, cropping = 0, adjust_record_length=False, interpolate = False):
     
     """ 
     annotate a raw file (totally uncleaned and uncropped) with stimulation events
@@ -111,6 +117,7 @@ def _annotate_audio(RAW, cropping = 0, adjust_record_length=False):
     
     """
     situation = RAW.filenames[0].split("\\")[-1].split("_")[1]
+    patient = RAW.filenames[0].split("\\")[-1]
     annocheser2=RAW._annotations
     for i in range(int(float(len(RAW))/(RAW.info["sfreq"]*7))+1):
         annocheser2.append([i*7], [5], str("STIM_"+situation))
@@ -118,15 +125,44 @@ def _annotate_audio(RAW, cropping = 0, adjust_record_length=False):
     if not cropping == 0:
         print(float((len(RAW) / RAW.info["sfreq"])))
         RAW.crop(tmin=cropping,)
-    if (len(RAW) / RAW.info["sfreq"] )> 190:
-        print("enregistrement plus long que 180s, cropping en cours")
-        RAW.crop(tmin =0,tmax=180.2)
+    if adjust_record_length == True:
+        if (len(RAW) / RAW.info["sfreq"] )> 190:
+            print("enregistrement plus long que 180s, cropping en cours")
+            RAW.crop(tmin =0,tmax=180.2)
+    if interpolate== True:
+        ## TO DO à modifier ici 
+        os.chdir("C:/Users/Zeta/gipsa_lab/collabo_louis/tinnituseeg/code/zeta/data/resources/")
+        dicos= ["bad_chan_norena_high_metaData_stats", "bad_chan_norena_low_metaData_stats"]
+        ## TODO que faire avec les enregistrements qui sont tellement mauvais que rejetes? Pour l'instant le cas est ignored
+        
+        if situation == dicos[0].split("_")[3]:
+            d = open_dict(dicos[0])
+            
+            if not d.keys().__contains__(patient):
+                print ("patient ou enregistrement trop mauvais pour en tirer qqchose de valable")
+            else:
+                to_interpo = d[patient]
+                RAW.load_data()
+                RAW.info["bads"]=to_interpo[0]
+                RAW.interpolate_bads()
+                #RAW.plot(scalings="auto")
+        else:
+            if situation == dicos[1].split("_")[3]:
+                d = open_dict(dicos[1])
+                if not d.keys().__contains__(patient):
+                    print ("patient ou enregistrement trop mauvais pour en tirer qqchose de valable")
+                else:
+                    to_interpo = d[patient]
+                    RAW.load_data()
+                    RAW.info["bads"]=to_interpo[0]
+                    RAW.interpolate_bads()
+                    #RAW.plot(scalings="auto")
     return RAW
 
 
 ## Testing
 if __name__ == '__main__':
-    data_folder= "C:/Users/Zeta/gipsa_lab/test_traitement/2/raw_clean_32/"
+    data_folder= "C:/Users/Zeta/gipsa_lab/test_traitement/2/raw_fif/"
     dico = get_subjects(data_folder)
-    raw0, raw1 = get_raw(data_folder, dico, dico.keys()[0])
+    raw0, raw1 = get_raw(data_folder, dico.keys()[1], dico = dico, interpolate = True)
 
