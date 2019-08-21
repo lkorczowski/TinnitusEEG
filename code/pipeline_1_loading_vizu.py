@@ -46,8 +46,9 @@ if __name__ == '__main__':
     """" CONFIGURE PATHS 
     This section will be integrate into zeta module with a use of 
     config file prepared for each computer."""
+    # TODO: integrate this section into a module or a yalm file
     
-    resultsID='pipeline_1' #set ID for output directory (will remplace any former results with same ID)
+    resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
         
     #for automatic folder path use, add the elif: for your machine ID below
     configID=socket.gethostname()
@@ -55,12 +56,12 @@ if __name__ == '__main__':
         print("not configured")
     elif configID=='Crimson-Box':
          os.chdir("F:\\git\\TinnitusEEG\\code")
-         data_dir = os.path.join("F:\\","data",'Zeta') #gitlab "freiburg" directory
+         data_dir = os.path.join("F:\\","data",'Zeta')
          fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
     elif configID=='MacBook-Pro-de-Louis.local':
          os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
-         data_dir = os.path.join("/Volumes/Ext/","data",'Zeta') #gitlab "freiburg" directory
-         fig_dir = "/Volumes/Ext/python/zeta/results/"
+         data_dir = os.path.join("/Volumes/Ext/","data",'Zeta')
+         fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
     else:
         print('config not recognize, please add the path of your git directories')
     #WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
@@ -311,8 +312,6 @@ if __name__ == '__main__':
             
             plt.show()
             plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
-            
-            assert False
-    
+                
     
     
