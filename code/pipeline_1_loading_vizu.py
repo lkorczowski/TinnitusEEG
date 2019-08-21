@@ -23,6 +23,10 @@ history:
 """
 #execution section
 if __name__ == '__main__':
+    #==============================================================================
+    # IMPORTS 
+    #%%============================================================================
+    
     import os, sys
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.append(current_dir)
@@ -35,10 +39,14 @@ if __name__ == '__main__':
     from pathlib import Path #should be used instead of os.path.join
     from itertools import compress
     import matplotlib.pyplot as plt
-    #%%
+    
+    #==============================================================================
+    # PATHS 
+    #%%============================================================================
     """" CONFIGURE PATHS 
     This section will be integrate into zeta module with a use of 
     config file prepared for each computer."""
+    
     resultsID='pipeline_1' #set ID for output directory (will remplace any former results with same ID)
         
     #for automatic folder path use, add the elif: for your machine ID below
@@ -108,7 +116,9 @@ if __name__ == '__main__':
     t=["exacerb","absente","partielle","totale"]
     subjects=cong.keys()
     
-    
+    #==============================================================================
+    # PROCESSING LOOP 
+    #%%============================================================================  
     for subject in [list(subjects)[1]]: # subject in list(subjects): # 
         fig_dir_sub=fig_dir+subject+os.path.sep
         if not os.path.exists(fig_dir_sub):
