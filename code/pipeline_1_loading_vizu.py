@@ -14,6 +14,9 @@ CONFIDENTIAL
 
 last version: DRAFT v0.5 (2019-07-19)
 history:
+    | v0.71 2019-08-21 backup v0.5, pickle integration
+    | v0.7 2019-07-27 group-level integration (CANCELED)
+    | v0.6 2019-07-23 dataset integration (CANCELED)
     | v0.5 2019-07-19 correction of timing
     | v0.4 2019-07-17 TF statistical test and GFP
     | v0.3 2019-07-16 epoch extraction and TF vizualization
@@ -36,9 +39,9 @@ if __name__ == '__main__':
     import mne
     import numpy as np
     import socket
-    from pathlib import Path #should be used instead of os.path.join
     from itertools import compress
     import matplotlib.pyplot as plt
+    import pickle
     
     #==============================================================================
     # PATHS 
@@ -80,10 +83,9 @@ if __name__ == '__main__':
     # compatible with the other files. I recommand renamed it to 'patientCR' or 'CR'
     """
     
-    # %%
-    """ DATA LOADING 
-    this section will load data and extract the epochs with conditions.
-    """
+    #==============================================================================
+    # DATA LOADING 
+    #%%============================================================================  
     subject=1
     patient =2 #patient group (static for a given dataset)
     session =9 #6 = 1 old remplacer apres (session 'high')
@@ -132,9 +134,13 @@ if __name__ == '__main__':
         everything is working fine with mne.
         For classification, it is adviced to keep data in µV.
         """
+        
+        #clean loop variable
         runs=[]
         labels=[]
         events=[]
+        
+        #load raw data
         for root, dirs, files in os.walk(os.path.join(data_dir,datasetname)):
             for file in files:
                 if file.startswith(subject):
@@ -144,7 +150,6 @@ if __name__ == '__main__':
                     labels.append(file.split('_')[1])
                     
         eventscode=dict(zip(np.unique(runs[0]._annotations.description),[0,1]))
-        #events=mne.events_from_annotations(runs[0])       
                 
         runs_0=list(compress(runs,[x=='low' for x in labels]))
         runs_1=list(compress(runs,[x=='high' for x in labels]))
@@ -171,7 +176,7 @@ if __name__ == '__main__':
         events=np.concatenate((timestamps.reshape(-1,1),
                                    np.zeros(timestamps.shape).astype(int).reshape(-1,1),
                                    labels.reshape(-1,1)),axis=1)
-        # events visualation
+        # events visualizatiobn
         if ShowFigures:
             color = {0: 'green', 100: 'red'}
             mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
@@ -184,14 +189,25 @@ if __name__ == '__main__':
         epoch2keep=np.where(np.diff(stimt)==3500)[0] #keep only epoch of 7sec
         epoch2drop=np.where(np.diff(stimt)!=3500)[0]
         events=events[epoch2keep,:]
-        
-        
-        
-        # %% GFP analysis
+
+        #----------------------------
+        # GLOBAL FIELD POWER (GFP) 
+        #%%--------------------------
         plt.close('all')
-        reject=dict(eeg=120)
-        event_id, tmin, tmax = 0, 5.1, 7.6
-        baseline = (5.1,5.6)
+        reject=dict(eeg=120) # in µV
+        """LOW VERSUS HIGH AUDITORY DATASET INFO
+        stimulus code is -0.6 before auditory stimulus
+        auditory stimulus last 5 sec
+        post-stimulus resting state last 7sec
+        therefore full epoch:
+        tmin,tmax=0.6,7.6
+        auditory stimuli:
+        tmin,tmax=0.6,5.6
+        post-stimuli:
+         tmin,tmax=5.6,7.6
+        """
+        event_id, tmin, tmax = 0, 5.1, 7.6 #post-stimuli -0.5 to 2 seconds
+        baseline = (5.1,5.6) #post-stimuli -0.5 to 0 (during auditory stimuli)
         offset=raw_0.info['sfreq']*0.6
         iter_freqs = [
             ('Theta', 4, 7),
@@ -216,7 +232,9 @@ if __name__ == '__main__':
         out1[1].savefig(fig_dir_sub+'gfp1',dpi=300)
     
         
-        # %% D Time-Frequency analysis
+        #----------------------------
+        # TIME-FREQUENCY ANALYSIS (TFA) 
+        #%%--------------------------
         plt.close('all')
         #extract events from annotations
         event_id0={'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
@@ -249,8 +267,9 @@ if __name__ == '__main__':
         out1[2].savefig(fig_dir_sub+'TF1_high',dpi=300)
         out1[3].savefig(fig_dir_sub+'TF2_high',dpi=300)
         out1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
-        # %% E Cluster-based TF statistics for each electrode
-        #parameters
+        #----------------------------
+        # CLUSTER-BASED PERMUTATION BASED ON TFA 
+        #%%--------------------------
         plt.close('all')
         for ch_name in ['t7']:#epochs0.info['ch_names']:#
             decim=1
