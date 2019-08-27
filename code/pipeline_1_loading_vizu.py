@@ -44,15 +44,32 @@ if __name__ == '__main__':
     import pickle
     
     #==============================================================================
-    # PATHS 
+    # PATHS & CONFIG
     #%%============================================================================
     """" CONFIGURE PATHS 
     This section will be integrate into zeta module with a use of 
     config file prepared for each computer."""
     # TODO: integrate this section into a module or a yalm file
     
+    
     resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
-        
+    ForceSave=True #if set True, will overwrite previous results in Pickle
+    SaveFig=False #if set True, will overwrite previous figure in folder  resultsID
+    
+    operations_to_apply=dict(
+            epoching=1,
+            GFP=0, #Global Field Power
+            TFR=0, #Time-Frequency Response for each epoch
+            TFR_av=1, #Time-Frequency Response Averaging
+            TFR_stats=0 #Compute inter-trials statistics on TFR
+            )
+    verbose='ERROR'
+    subject=1
+    patient =2 #patient group (static for a given dataset)
+    session =9 #6 = 1 old remplacer apres (session 'high')
+    ses2=8  # (session 'low')
+    datasetname="raw_clean_32"
+    
     #for automatic folder path use, add the elif: for your machine ID below
     configID=socket.gethostname()
     if configID=='your_machine_name':
@@ -84,14 +101,8 @@ if __name__ == '__main__':
     """
     
     #==============================================================================
-    # DATA LOADING 
+    # META DATA LOADING 
     #%%============================================================================  
-    subject=1
-    patient =2 #patient group (static for a given dataset)
-    session =9 #6 = 1 old remplacer apres (session 'high')
-    ses2=8  # (session 'low')
-    datasetname="raw_clean_32"
-    ShowFigures=1
     
     names = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(session)))
     names2 = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(ses2)))
@@ -122,215 +133,295 @@ if __name__ == '__main__':
     #==============================================================================
     # PROCESSING LOOP 
     #%%============================================================================  
-    for subject in [list(subjects)[1]]: # subject in list(subjects): # 
-        fig_dir_sub=fig_dir+subject+os.path.sep
-        if not os.path.exists(fig_dir_sub):
-            os.makedirs(fig_dir_sub) #create results directory if needed
-        #load subject data
-        """
-        note here that the EEG data are in µV while MNE use V. Therefore scale 
-        is with a 1e6 factor andit could cause a problem for non-linear related MNE
-        analysing. I advice to apply a 1e-6 factor in the future to make sure that
-        everything is working fine with mne.
-        For classification, it is adviced to keep data in µV.
-        """
-        
-        #clean loop variable
-        runs=[]
-        labels=[]
-        events=[]
-        
-        #load raw data
-        for root, dirs, files in os.walk(os.path.join(data_dir,datasetname)):
-            for file in files:
-                if file.startswith(subject):
-                    filepath=os.path.join(root,file)
-                    runs.append(mne.io.read_raw_fif(filepath)) #load data
-                    #events=mne.read_events(filepath)
-                    labels.append(file.split('_')[1])
-                    
-        eventscode=dict(zip(np.unique(runs[0]._annotations.description),[0,1]))
-                
-        runs_0=list(compress(runs,[x=='low' for x in labels]))
-        runs_1=list(compress(runs,[x=='high' for x in labels]))
-        
-        raw_0=mne.concatenate_raws(runs_0)
-        raw_1=mne.concatenate_raws(runs_1)
-    
-        #rename table for event to annotations
-        event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
-        
-        #vizualization
-        if ShowFigures:
-            scalings=dict(eeg=10e1)
-            mne.viz.plot_raw(raw_0,scalings=scalings)
-        
-        timestamps=np.round(raw_0._annotations.onset*raw_0.info['sfreq']).astype(int)
-        
-        raw_0._annotations.duration
-        event_id = {'BAD_data': 0, 'bad EPOCH': 100}
-        
-        labels=raw_0._annotations.description
-        labels=np.vectorize(event_id0.__getitem__)(labels) #convert labels into int
-        
-        events=np.concatenate((timestamps.reshape(-1,1),
-                                   np.zeros(timestamps.shape).astype(int).reshape(-1,1),
-                                   labels.reshape(-1,1)),axis=1)
-        # events visualizatiobn
-        if ShowFigures:
-            color = {0: 'green', 100: 'red'}
-            mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
-                            event_id=event_id)
+    for subject in list(subjects): # [list(subjects)[1]]: #
+        #----------------------------
+        # RAW DATA LOADING AND PREPROCESSING
+        #%%--------------------------
+        try:
+            fig_dir_sub=fig_dir+subject+os.path.sep
+            if not os.path.exists(fig_dir_sub):
+                os.makedirs(fig_dir_sub) #create results directory if needed
             
-        # the difference between two full stimuli windows should be 7 sec. 
-        raw_0.n_times
-        events=events[events[:,2]==0,:] #keep only auditory stimuli
-        stimt=np.append(events[:,0],raw_0.n_times) #stim interval
-        epoch2keep=np.where(np.diff(stimt)==3500)[0] #keep only epoch of 7sec
-        epoch2drop=np.where(np.diff(stimt)!=3500)[0]
-        events=events[epoch2keep,:]
-
+            
+            #load subject data
+            """
+            note here that the EEG data are in µV while MNE use V. Therefore scale 
+            is with a 1e6 factor andit could cause a problem for non-linear related MNE
+            analysing. I advice to apply a 1e-6 factor in the future to make sure that
+            everything is working fine with mne.
+            For classification, it is adviced to keep data in µV.
+            """
+            
+            #clean loop variable
+            runs=[]
+            labels=[]
+            events=[]
+            
+            #load raw data
+            for root, dirs, files in os.walk(os.path.join(data_dir,datasetname)):
+                for file in files:
+                    if file.startswith(subject):
+                        filepath=os.path.join(root,file)
+                        runs.append(mne.io.read_raw_fif(filepath),verbose="ERROR") #load data
+                        #events=mne.read_events(filepath)
+                        labels.append(file.split('_')[1])
+                        
+            eventscode=dict(zip(np.unique(runs[0]._annotations.description),[0,1]))
+                    
+            runs_0=list(compress(runs,[x=='low' for x in labels]))
+            runs_1=list(compress(runs,[x=='high' for x in labels]))
+            
+            raw_0=mne.concatenate_raws(runs_0)
+            raw_1=mne.concatenate_raws(runs_1)
+        
+            #rename table for event to annotations
+            event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
+            
+            #vizualization
+            if SaveFig:
+                scalings=dict(eeg=10e1)
+                mne.viz.plot_raw(raw_0,scalings=scalings)
+            
+            timestamps=np.round(raw_0._annotations.onset*raw_0.info['sfreq']).astype(int)
+            
+            raw_0._annotations.duration
+            event_id = {'BAD_data': 0, 'bad EPOCH': 100}
+            
+            labels=raw_0._annotations.description
+            labels=np.vectorize(event_id0.__getitem__)(labels) #convert labels into int
+            
+            events=np.concatenate((timestamps.reshape(-1,1),
+                                       np.zeros(timestamps.shape).astype(int).reshape(-1,1),
+                                       labels.reshape(-1,1)),axis=1)
+            # events visualizatiobn
+            if SaveFig:
+                color = {0: 'green', 100: 'red'}
+                mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
+                                event_id=event_id)
+                
+            # the difference between two full stimuli windows should be 7 sec. 
+            raw_0.n_times
+            events=events[events[:,2]==0,:] #keep only auditory stimuli
+            stimt=np.append(events[:,0],raw_0.n_times) #stim interval
+            epoch2keep=np.where(np.diff(stimt)==3500)[0] #keep only epoch of 7sec
+            epoch2drop=np.where(np.diff(stimt)!=3500)[0]
+            events=events[epoch2keep,:]
+        except:
+            print("Something went wrong with "+subject +" when loading data")
+        else:
+            print("subject "+subject+" data loaded")
+    
         #----------------------------
         # GLOBAL FIELD POWER (GFP) 
         #%%--------------------------
-        plt.close('all')
-        reject=dict(eeg=120) # in µV
-        """LOW VERSUS HIGH AUDITORY DATASET INFO
-        stimulus code is -0.6 before auditory stimulus
-        auditory stimulus last 5 sec
-        post-stimulus resting state last 7sec
-        therefore full epoch:
-        tmin,tmax=0.6,7.6
-        auditory stimuli:
-        tmin,tmax=0.6,5.6
-        post-stimuli:
-         tmin,tmax=5.6,7.6
-        """
-        event_id, tmin, tmax = 0, 5.1, 7.6 #post-stimuli -0.5 to 2 seconds
-        baseline = (5.1,5.6) #post-stimuli -0.5 to 0 (during auditory stimuli)
-        offset=raw_0.info['sfreq']*0.6
-        iter_freqs = [
-            ('Theta', 4, 7),
-            ('Alpha', 8, 12),
-            ('Beta', 13, 25),
-            ('Gamma', 30, 45)
-        ]
-        verbose='ERROR'
-        tmp=zeta.data.stim.get_events(raw_0,event_id0,offset=0)
-        events0=tmp[0][tmp[1],:] #keep only good data
+        if operations_to_apply["GFP"]:
+            try:
+                plt.close('all')
+                reject=dict(eeg=120) # in µV
+                """LOW VERSUS HIGH AUDITORY DATASET INFO
+                stimulus code is -0.6 before auditory stimulus
+                auditory stimulus last 5 sec
+                post-stimulus resting state last 7sec
+                therefore full epoch:
+                tmin,tmax=0.6,7.6
+                auditory stimuli:
+                tmin,tmax=0.6,5.6
+                post-stimuli:
+                 tmin,tmax=5.6,7.6
+                """
+                event_id, tmin, tmax = 0, 5.1, 7.6 #post-stimuli -0.5 to 2 seconds
+                baseline = (5.1,5.6) #post-stimuli -0.5 to 0 (during auditory stimuli)
+                offset=raw_0.info['sfreq']*0.6
+                iter_freqs = [
+                    ('Theta', 4, 7),
+                    ('Alpha', 8, 12),
+                    ('Beta', 13, 25),
+                    ('Gamma', 30, 45)
+                ]
+                
+                #Perform GFP
+                options=dict(iter_freqs=iter_freqs,baseline=baseline,
+                       event_id=event_id,tmin=tmin, tmax=tmax,reject=reject,
+                       verbose=verbose)
+                                
+                tmp=zeta.data.stim.get_events(raw_0,event_id0,offset=0)
+                events0=tmp[0][tmp[1],:] #keep only good data
+                gfp0=zeta.analysis.freq.GFP(raw_0,events0,**options)
+                if SaveFig:
+                    gfp0[1].savefig(fig_dir_sub+'gfp0',dpi=300)
+                    
+                tmp=zeta.data.stim.get_events(raw_1,event_id0)
+                events1=tmp[0][tmp[1],:]
+                gfp1=zeta.analysis.freq.GFP(raw_1,events1,**options)
+                if SaveFig:
+                    gfp1[1].savefig(fig_dir_sub+'gfp1',dpi=300)
+            except:
+                print("Something went wrong with "+subject +" on GLOBAL FIELD POWER")
+                pass
+            else:
+                print("subject "+subject+" GFP done")
+        else:
+            print("skip GFP")
         
-        options=dict(iter_freqs=iter_freqs,baseline=baseline,
-                               event_id=event_id,tmin=tmin, tmax=tmax,reject=reject,
-                               verbose=verbose)
-        out0=zeta.analysis.freq.GFP(raw_0,events0,**options)
-        
-        out0[1].savefig(fig_dir_sub+'gfp0',dpi=300)
-        tmp=zeta.data.stim.get_events(raw_1,event_id0)
-        events1=tmp[0][tmp[1],:]
-        
-        out1=zeta.analysis.freq.GFP(raw_1,events1,**options)
-        out1[1].savefig(fig_dir_sub+'gfp1',dpi=300)
-    
         
         #----------------------------
-        # TIME-FREQUENCY ANALYSIS (TFA) 
+        # epoching
         #%%--------------------------
-        plt.close('all')
-        #extract events from annotations
-        event_id0={'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-        event_id1={'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-        tmp=zeta.data.stim.get_events(raw_0,event_id0)
-        events0=tmp[0][tmp[1],:]
-        tmp=zeta.data.stim.get_events(raw_1,event_id1)
-        events1=tmp[0][tmp[1],:]
-        
-        #extract epochs
-        event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0.6, 7.6
-        baseline = (None,5.6)
-        reject=dict(eeg=120)
-        epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
-                            reject=reject, preload=True,reject_by_annotation=0,
-                            verbose=verbose)
-    
-        epochs1 = mne.Epochs(raw_1, events1, event_id1, tmin, tmax, baseline=baseline,
-                        reject=reject, preload=True,reject_by_annotation=0,
-                        verbose=verbose)    
-        
-        options=dict(iter_freqs=iter_freqs,baseline=baseline,
-                     tmin=tmin, tmax=tmax,ch_name='cz')
-        out0=zeta.analysis.freq.TF(epochs0,**options)
-        out1=zeta.analysis.freq.TF(epochs1,**options)
-    
-        out0[2].savefig(fig_dir_sub+'TF1_low',dpi=300)
-        out0[3].savefig(fig_dir_sub+'TF2_low',dpi=300)
-        out0[4].savefig(fig_dir_sub+'TF3_low',dpi=300)
-        out1[2].savefig(fig_dir_sub+'TF1_high',dpi=300)
-        out1[3].savefig(fig_dir_sub+'TF2_high',dpi=300)
-        out1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
+        if operations_to_apply["epoching"]:
+            try:
+                plt.close('all')
+                #extract events from annotations
+                event_id0={'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+                event_id1={'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+                tmp=zeta.data.stim.get_events(raw_0,event_id0)
+                events0=tmp[0][tmp[1],:]
+                tmp=zeta.data.stim.get_events(raw_1,event_id1)
+                events1=tmp[0][tmp[1],:]
+                
+                #extract epochs
+                event_id0,event_id1, tmin, tmax = {'low':0},{'high':1}, 0.6, 7.6
+                baseline = (None,5.6)
+                reject=dict(eeg=120)
+                epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
+                                    reject=reject, preload=True,reject_by_annotation=0,
+                                    verbose=verbose)
+            
+                epochs1 = mne.Epochs(raw_1, events1, event_id1, tmin, tmax, baseline=baseline,
+                                reject=reject, preload=True,reject_by_annotation=0,
+                                verbose=verbose) 
+            except:
+                print("Something went wrong with "+subject +" on epoching")
+                pass
+            else:
+                print("subject "+subject+" epoching done")
+        else:
+            print("skip epoching")
+            
         #----------------------------
-        # CLUSTER-BASED PERMUTATION BASED ON TFA 
+        # TIME-FREQUENCY ANALYSIS (TFR) 
+        #%%--------------------------                
+        if operations_to_apply["TFR"]:
+            try:
+                options=dict(iter_freqs=iter_freqs,baseline=baseline,
+                             tmin=tmin, tmax=tmax,ch_name='cz')
+                tfr0=zeta.analysis.freq.TF(epochs0,**options)
+                tfr1=zeta.analysis.freq.TF(epochs1,**options)
+                if SaveFig:
+                    tfr0[2].savefig(fig_dir_sub+'TF1_low',dpi=300)
+                    tfr0[3].savefig(fig_dir_sub+'TF2_low',dpi=300)
+                    tfr0[4].savefig(fig_dir_sub+'TF3_low',dpi=300)
+                    tfr1[2].savefig(fig_dir_sub+'TF1_high',dpi=300)
+                    tfr1[3].savefig(fig_dir_sub+'TF2_high',dpi=300)
+                    tfr1[4].savefig(fig_dir_sub+'TF3_high',dpi=300)
+            except:
+                print("Something went wrong with "+subject +" on TFR")
+                pass
+            else:
+                print("subject "+subject+" TFR done")
+        else:
+            print("skip TFR")
+
+        #----------------------------
+        # Averaging of TFR
         #%%--------------------------
-        plt.close('all')
-        for ch_name in ['t7']:#epochs0.info['ch_names']:#
-            decim=1
-            freqs = np.arange(0.5, 40, 0.5) 
-            n_cycles = freqs / 2.
-            
-            
-            #compute TF chuncks
-            epochs0c=epochs0.copy()
-            epochs1c=epochs1.copy()
-            tfr_epochs_0 = mne.time_frequency.tfr_morlet(epochs0c.pick_channels([ch_name]), freqs,
-                                      n_cycles=n_cycles, decim=decim,
-                                      return_itc=False, average=False)
-            
-            tfr_epochs_1 = mne.time_frequency.tfr_morlet(epochs1c.pick_channels([ch_name]), freqs,
-                                      n_cycles=n_cycles, decim=decim,
-                                      return_itc=False, average=False)
-            
-            epochs_power_0 = tfr_epochs_0.data[:, 0, :, :]  # only ch_name channel as 3D matrix
-            epochs_power_1 = tfr_epochs_1.data[:, 0, :, :]  # only ch_name channel as 3D matrix
-            
-            #compute permutation test (cluster-based)
-            threshold = None
-            T_obs, clusters, cluster_p_values, H0 = \
-            mne.stats.permutation_cluster_test([epochs_power_0, epochs_power_1],
-                                               n_permutations=250, threshold=threshold, tail=0)
-                
-            times = 1e3 * epochs0.times  # change unit to ms
-                
-            evoked_condition_0 = epochs0c.average()
-            evoked_condition_1 = epochs1c.average()
-            
-            plt.figure()
-            plt.subplots_adjust(0.12, 0.08, 0.96, 0.94, 0.2, 0.43)
-            
-            plt.subplot(2, 1, 1)
-            # Create new stats image with only significant clusters
-            T_obs_plot = np.nan * np.ones_like(T_obs)
-            for c, p_val in zip(clusters, cluster_p_values):
-                if p_val <= 0.05:
-                    T_obs_plot[c] = T_obs[c]
-            
-            plt.imshow(T_obs,
-                       extent=[times[0], times[-1], freqs[0], freqs[-1]],
-                       aspect='auto', origin='lower', cmap='gray')
-            plt.imshow(T_obs_plot,
-                       extent=[times[0], times[-1], freqs[0], freqs[-1]],
-                       aspect='auto', origin='lower', cmap='RdBu_r')
-            
-            plt.xlabel('Time (ms)')
-            plt.ylabel('Frequency (Hz)')
-            plt.title('Induced power (%s)' % ch_name)
-            
-            ax2 = plt.subplot(2, 1, 2)
-            evoked_contrast = mne.combine_evoked([evoked_condition_0.pick_channels([ch_name]), 
-                                                  evoked_condition_1.pick_channels([ch_name])],
-                                                 weights=[1, -1])
-            evoked_contrast.plot(axes=ax2, time_unit='s')
-            
-            plt.show()
-            plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
+        decim=1
+        freqs = np.arange(0.5, 40, 0.5) 
+        n_cycles = freqs / 2.
+        
+        if operations_to_apply["TFR_av"]:
+            try:
+                tfr_av0 = mne.time_frequency.tfr_morlet(epochs0, freqs,
+                                          n_cycles=n_cycles, decim=decim,
+                                          return_itc=False, average=True)
+                if ForceSave:
+                    with open(os.path.join(fig_dir_sub,"tfr_av0.pickle"),"wb") as f:
+                            pickle.dump(tfr_av0, f)
+                        
+                tfr_av1 = mne.time_frequency.tfr_morlet(epochs1, freqs,
+                                          n_cycles=n_cycles, decim=decim,
+                                          return_itc=False, average=True)
+                if ForceSave:
+                    with open(os.path.join(fig_dir_sub,"tfr_av1.pickle"),"wb") as f:
+                            pickle.dump(tfr_av1, f)
+            except:
+                print("Something went wrong with "+subject +" on TFR_av")
+                pass
+            else:
+                print("subject "+subject+" TFR_av done")
+        else:
+            print("skip TFR_av")
                 
     
-    
+        #----------------------------
+        # CLUSTER-BASED PERMUTATION BASED ON TFR
+        #%%--------------------------                    
+        if operations_to_apply["TFR_stats"]:
+            try:
+                plt.close('all')
+                for ch_name in ['t7']:#epochs0.info['ch_names']:#
+                    
+                    #compute TF chuncks electrode by electrode
+                    epochs0c=epochs0.copy().pick_channels([ch_name])
+                    epochs1c=epochs1.copy().pick_channels([ch_name])
+                    tfr_epochs_0 = mne.time_frequency.tfr_morlet(epochs0c, freqs,
+                                              n_cycles=n_cycles, decim=decim,
+                                              return_itc=False, average=False)
+                    
+                    tfr_epochs_1 = mne.time_frequency.tfr_morlet(epochs1c, freqs,
+                                              n_cycles=n_cycles, decim=decim,
+                                              return_itc=False, average=False)
+            
+                        
+                    
+                    epochs_power_0 = tfr_epochs_0.data[:, 0, :, :]  # only ch_name channel as 3D matrix
+                    epochs_power_1 = tfr_epochs_1.data[:, 0, :, :]  # only ch_name channel as 3D matrix
+                    
+                    #compute permutation test (cluster-based)
+                    threshold = None
+                    T_obs, clusters, cluster_p_values, H0 = \
+                    mne.stats.permutation_cluster_test([epochs_power_0, epochs_power_1],
+                                                       n_permutations=250, threshold=threshold, tail=0)
+                        
+                    times = 1e3 * epochs0.times  # change unit to ms
+                        
+                    evoked_condition_0 = epochs0c.average()
+                    evoked_condition_1 = epochs1c.average()
+                    
+                    plt.figure()
+                    plt.subplots_adjust(0.12, 0.08, 0.96, 0.94, 0.2, 0.43)
+                    
+                    plt.subplot(2, 1, 1)
+                    # Create new stats image with only significant clusters
+                    T_obs_plot = np.nan * np.ones_like(T_obs)
+                    for c, p_val in zip(clusters, cluster_p_values):
+                        if p_val <= 0.05:
+                            T_obs_plot[c] = T_obs[c]
+                    
+                    plt.imshow(T_obs,
+                               extent=[times[0], times[-1], freqs[0], freqs[-1]],
+                               aspect='auto', origin='lower', cmap='gray')
+                    plt.imshow(T_obs_plot,
+                               extent=[times[0], times[-1], freqs[0], freqs[-1]],
+                               aspect='auto', origin='lower', cmap='RdBu_r')
+                    
+                    plt.xlabel('Time (ms)')
+                    plt.ylabel('Frequency (Hz)')
+                    plt.title('Induced power (%s)' % ch_name)
+                    
+                    ax2 = plt.subplot(2, 1, 2)
+                    evoked_contrast = mne.combine_evoked([evoked_condition_0, 
+                                                          evoked_condition_1],
+                                                          weights=[1, -1])          
+                    if SaveFig:
+                        evoked_contrast.plot(axes=ax2, time_unit='s')
+                        plt.show()
+                        plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
+            except:
+                print("Something went wrong with "+subject +" on TFR_stats")
+                pass
+            else:
+                print("subject "+subject+" TFR_stats done")
+        else:
+            print("skip TFR_stats")
+        
+        
