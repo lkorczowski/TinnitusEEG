@@ -20,8 +20,8 @@ git config --global user.email johndoe@example.com
 
 # set ssh  (if it is the first time you access GitHub or have a access denial)
 0. read https://help.github.com/en/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
-1. open terminal
-2. c`reate key $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`
+1. open terminal/git bash
+2. `create key $ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"`
 3. go to your users/.ssh/ folder (hidden folder)
 4. open and copy content of users/.ssh/id_rsa.pub
 5. go to https://github.com/settings/keys
@@ -62,8 +62,6 @@ git config --global user.email johndoe@example.com
 OR (only for small changes that doesn't require a pull request and code review)
 
 1. `git checkout master`(this is the output folder)
-2. `git merge feature_branch_name -m "merge description"`(will merge the feature_branch into master)
-3. (optional) If you don't need the feature_branch anymore, you can delete it:
+2. `git merge feature_branch_name`(will merge the feature_branch into master)
+3. If you don't need the feature_branch anymore, you can delete it:
    `git branch -d feature_branch_name`
-4. `git push` to push the merge to the remote
-5.  (optional if 3 done) `git push origin -d feature_branch_name` 
