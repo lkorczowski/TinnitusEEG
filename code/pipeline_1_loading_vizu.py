@@ -60,7 +60,7 @@ if __name__ == '__main__':
             epoching=1,
             GFP=0, #Global Field Power
             TFR=0, #Time-Frequency Response for each epoch
-            TFR_av=1, #Time-Frequency Response Averaging
+            TFR_av=0, #Time-Frequency Response Averaging
             TFR_stats=0 #Compute inter-trials statistics on TFR
             )
     verbose='ERROR'
@@ -395,6 +395,6 @@ if __name__ == '__main__':
                     plt.show()
                     plt.savefig(fname=fig_dir_sub+ 'E_01_TF_cluster_stats_'+ ch_name + '.png')
             print("subject "+subject+" TFR_stats done")
+        
+    print("Pipeline 1 DONE")
 
-        
-        
