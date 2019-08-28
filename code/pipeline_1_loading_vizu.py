@@ -53,7 +53,7 @@ if __name__ == '__main__':
     
     
     resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
-    ForceSave=True #if set True, will overwrite previous results in Pickle
+    ForceSave=False #if set True, will overwrite previous results in Pickle
     SaveFig=False #if set True, will overwrite previous figure in folder  resultsID
     
     operations_to_apply=dict(
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     #==============================================================================
     # PROCESSING LOOP 
     #%%============================================================================  
-    for subject in list(subjects): # [list(subjects)[1]]: #
+    for subject in [list(subjects)[1]]: #list(subjects): # 
         #----------------------------
         # RAW DATA LOADING AND PREPROCESSING
         #%%--------------------------
