@@ -36,6 +36,7 @@ if __name__ == '__main__':
     from itertools import compress
     import matplotlib.pyplot as plt
     import pickle
+    import pandas as pd
     
     #==============================================================================
     # PATHS & CONFIG
@@ -57,7 +58,7 @@ if __name__ == '__main__':
             GFP=0, #Global Field Power
             TFR=0, #Time-Frequency Response for each epoch
             TFR_av=1, #Time-Frequency Response Averaging
-            TFR_stats=0 #Compute inter-trials statistics on TFR
+            TFR_stats=1 #Compute inter-trials statistics on TFR
             )
     verbose='ERROR'
     subject=1
@@ -128,8 +129,15 @@ if __name__ == '__main__':
     
     #==============================================================================
     # PROCESSING LOOP 
-    #%%============================================================================  
-    for subject in list(subjects): # [list(subjects)[1]]: #
+    #%%============================================================================
+    tfr_av0=[]
+    tfr_av1=[]
+    tfr0_data=[]
+    tfr1_data=[]
+    subjects_list=[]
+    bad_subjects=[]
+    # TODO: move that loop for each processing ?
+    for subject in  list(subjects): #list(subjects): # [list(subjects)[1]]: #
         #----------------------------
         # RAW DATA LOADING AND PREPROCESSING
         #%%--------------------------
@@ -150,23 +158,109 @@ if __name__ == '__main__':
         #----------------------------
         # Averaging of TFR (group-level)
         #%%--------------------------
-        tfr_av0=[]
-        tfr_av1=[]
+        
         
         if operations_to_apply["TFR_av"]:
+            print("Compute TFR_av")
             try:
+                isNan=False
                 if ForceLoad:
                     tfr_av0.append(
-                            pickle.load(open(os.path.join(fig_dir_sub,"tfr_av0.pickle"),"rb")).data
+                            pickle.load(open(os.path.join(fig_dir_sub,"tfr_av0.pickle"),"rb"))
                         )
+                    tfr0_data.append(tfr_av0[-1].data)
+                    isNan=np.isnan(tfr0_data[-1]).any()
+                    print("subject "+subject+" TFR_av0 loaded")
+
                 if ForceLoad:
                     tfr_av1.append(
-                            pickle.load(open(os.path.join(fig_dir_sub,"tfr_av1.pickle"),"rb")).data
+                            pickle.load(open(os.path.join(fig_dir_sub,"tfr_av1.pickle"),"rb"))
                         )
-                print("subject "+subject+" TFR_av loaded")
+                    tfr1_data.append(tfr_av1[-1].data)
+                    isNan=isNan or np.isnan(tfr1_data[-1]).any()
+                    print("subject "+subject+" TFR_av1 loaded")
+                    
+                subjects_list.append(subject)#add only loaded data
+                bad_subjects.append(isNan)
                 
             except:
-                print("subject "+subject+" TFR_av could be loaded")
+                print("subject "+subject+" TFR_av COULDN'T be loaded")
+        else:
+            print("Skip TFR_av")
+                
+            
+    #----------------------------
+    # stats of TFR (group-level)
+    #%%--------------------------           
+    if operations_to_apply["TFR_stats"]:
+        print("Compute TFR_stats")
+
+#            try:
+        
+        #prepare data structures
+        times=tfr_av0[0].times
+        freqs=tfr_av0[0].freqs
+        tfr0_data=np.asarray(tfr0_data)
+        tfr1_data=np.asarray(tfr1_data)
+        
+        tests=[[0],[1],[2],[1,2],[-1,0,1,2]]
+        dfs=pd.DataFrame(subjects_list)
+        type_inhib=pd.read_csv(data_dir+os.path.sep+"type_inhib.csv") #be sure to have the correct file here
+        for group in tests:
+            test_name=''.join(str(e) for e in group)
+            #find subjects in test group
+            group_names=type_inhib.loc[type_inhib['type_inhib'].isin(group)]['patient'].tolist()
+            #get corresponding indexes
+            keep=dfs.isin(group_names)[0].tolist()
+            
+            #keep subjects that respect different criteria
+            subjects_to_keep=np.logical_and(~np.array(bad_subjects), np.array(keep))
+            nb_sub=np.count_nonzero(subjects_to_keep==True)
+            if nb_sub<5:
+                print("SKIP stats for group (%s), not enough subjects (%i/%i))"% (test_name,nb_sub,len(keep)))
+            else:   
+                print("Perform stats for group (%s), included (%i/%i))"% (test_name,nb_sub,len(keep)))
+                for ch_name in tfr_av0[0].info['ch_names']:#['t7']:#
+                    plt.close("all")
+                    ch_ind=mne.pick_channels(tfr_av0[0].info['ch_names'],[ch_name])
+                    
+                    #compute TF chuncks electrode by electrode                
+                    epochs_power_0 = tfr0_data[subjects_to_keep, ch_ind, :, :]  # only ch_name channel as 3D matrix and remove NANs
+                    epochs_power_1 = tfr1_data[subjects_to_keep, ch_ind, :, :]  # only ch_name channel as 3D matrix and remove NANs
+                    
+                    #compute permutation test (cluster-based)
+                    threshold = 6.0
+                    T_obs, clusters, cluster_p_values, H0 = \
+                    mne.stats.permutation_cluster_test([epochs_power_0, epochs_power_1],
+                                                       n_permutations=250, threshold=threshold, tail=0)
+            
+                    plt.figure()
+    #                plt.subplots_adjust(0.12, 0.08, 0.96, 0.94, 0.2, 0.43)
+                    
+                    # Create new stats image with only significant clusters
+                    T_obs_plot = np.nan * np.ones_like(T_obs)
+                    for c, p_val in zip(clusters, cluster_p_values):
+                        if p_val <= 0.05:
+                            T_obs_plot[c] = T_obs[c]
+                    
+                    plt.imshow(T_obs,
+                               extent=[times[0], times[-1], freqs[0], freqs[-1]],
+                               aspect='auto', origin='lower', cmap='gray')
+                    plt.imshow(T_obs_plot,
+                               extent=[times[0], times[-1], freqs[0], freqs[-1]],
+                               aspect='auto', origin='lower', cmap='RdBu_r')
+                    
+                    plt.xlabel('Time (ms)')
+                    plt.ylabel('Frequency (Hz)')
+                    plt.title('Induced power (%s) type:%s, N=%i/%i' % (ch_name, test_name,nb_sub,len(keep)))
+                        
+        
+                    plt.show()
+                    plt.savefig(fname=fig_dir+ 'Pipeline_2_group-level_TF_cluster_stats_'+test_name+ ch_name + '.png')
+                print("Group "+test_name+" TFR_stats done")
+            
+    else:
+        print("Skip TFR_stats")
 
             
             
