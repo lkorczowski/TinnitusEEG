@@ -235,7 +235,6 @@ if __name__ == '__main__':
                                                        n_permutations=250, threshold=threshold, tail=0)
             
                     plt.figure()
-    #                plt.subplots_adjust(0.12, 0.08, 0.96, 0.94, 0.2, 0.43)
                     
                     # Create new stats image with only significant clusters
                     T_obs_plot = np.nan * np.ones_like(T_obs)
@@ -255,8 +254,8 @@ if __name__ == '__main__':
                     plt.title('Induced power (%s) type:%s, N=%i/%i' % (ch_name, test_name,nb_sub,len(keep)))
                         
         
-                    plt.show()
-                    plt.savefig(fname=fig_dir+ 'Pipeline_2_group-level_TF_cluster_stats_'+test_name+ ch_name + '.png')
+#                    plt.show()
+                    plt.savefig(fname=fig_dir+os.path.sep+'group_'+test_name+os.path.sep+ 'Pipeline_2_group-level_TF_cluster_stats_'+ ch_name + '.png')
                 print("Group "+test_name+" TFR_stats done")
             
     else:
