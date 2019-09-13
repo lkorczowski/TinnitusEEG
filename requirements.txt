@@ -3,3 +3,5 @@ matplotlib
 numpy
 mne
 seaborn
+scikit-learn
+pyriemann

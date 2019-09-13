@@ -54,11 +54,11 @@ if __name__ == '__main__':
     
     resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
     ForceSave=False #if set True, will overwrite previous results in Pickle
-    SaveFig=False #if set True, will overwrite previous figure in folder  resultsID
+    SaveFig=True #if set True, will overwrite previous figure in folder  resultsID
     
     operations_to_apply=dict(
             epoching=1,
-            GFP=0, #Global Field Power
+            GFP=1, #Global Field Power
             TFR=0, #Time-Frequency Response for each epoch
             TFR_av=0, #Time-Frequency Response Averaging
             TFR_stats=0 #Compute inter-trials statistics on TFR
@@ -78,7 +78,7 @@ if __name__ == '__main__':
          os.chdir("F:\\git\\TinnitusEEG\\code")
          data_dir = os.path.join("F:\\","data",'Zeta')
          fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
-    elif configID=='MacBook-Pro-de-Louis.local':
+    elif configID=='MBP-de-Louis':
          os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
          data_dir = os.path.join("/Volumes/Ext/","data",'Zeta')
          fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
