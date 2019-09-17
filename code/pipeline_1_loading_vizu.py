@@ -58,10 +58,11 @@ if __name__ == '__main__':
     
     operations_to_apply=dict(
             epoching=1,
-            GFP=1, #Global Field Power
-            TFR=0, #Time-Frequency Response for each epoch
-            TFR_av=0, #Time-Frequency Response Averaging
-            TFR_stats=0 #Compute inter-trials statistics on TFR
+            GFP=1,       # Global Field Power
+            TFR=0,       # Time-Frequency Response for each epoch
+            TFR_av=0,    # Time-Frequency Response Averaging
+            TFR_stats=0  # Compute inter-trials statistics on TFR
+
             )
     verbose='ERROR'
     subject=1

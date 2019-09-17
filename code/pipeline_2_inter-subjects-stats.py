@@ -150,6 +150,7 @@ if __name__ == '__main__':
     tfr1_data = []
     subjects_list = []
     bad_subjects = []
+
     # TODO: move that loop for each processing ?
     for subject in list(subjects):  # [list(subjects)[1]]:  #
         ##----------------------------
@@ -214,11 +215,19 @@ if __name__ == '__main__':
         tfr1_data = np.asarray(tfr1_data)
 
         tests = [[0], [1], [2], [1, 2], [-1, 0, 1, 2]]
+
+
         dfs = pd.DataFrame(subjects_list)
         type_inhib = pd.read_csv(data_dir + os.path.sep + "type_inhib.csv")  # be sure to have the correct file here
         for group in tests:
             test_name = ''.join(str(e) for e in group)
             test_dir = fig_dir + 'group_' + test_name + os.path.sep
+
+            """
+            TODO:
+            describe more or make a pandas framework for queries
+            """
+
             # find subjects in test group
             group_names = type_inhib.loc[type_inhib['type_inhib'].isin(group)]['patient'].tolist()
 

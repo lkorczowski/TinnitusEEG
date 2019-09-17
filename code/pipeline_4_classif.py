@@ -46,7 +46,7 @@ if __name__ == '__main__':
     import sklearn
     import time
 
-    # ==============================================================================
+    ## ==============================================================================
     # PATHS & CONFIG
     # %%============================================================================
     """" CONFIGURE PATHS 
@@ -90,20 +90,9 @@ if __name__ == '__main__':
     # WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
 
     fig_dir = fig_dir + os.path.sep + resultsID + os.path.sep  # pipeline output directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir)  # create results directory if needed
+    zeta.util.mkdir(fig_dir)  # create dir only if required
 
-    """
-    subjects=['patientPC', '5CA09', '05AY22', 'patient', '05GS16', '04MM25', 
-          '1TG01', '05RP24', '3QO03', '5CD05', '5DN04', '05IN17', '05VP19', 
-          'GS', '05MP21', '5DL08', '05BY20', '05DF18', '05MV11', '5NA09',
-          'CQ', '5BB03', '05FV18', '5BY10', '04LK03', '04LM02', '05RM12',
-          '2SN14', 'QE', '3NT07', '5GF07']  #obsolete, generated below
-    # please note that 'patient_CR' is NOT a good name as the sparse with '_' is not
-    # compatible with the other files. I recommand renamed it to 'patientCR' or 'CR'
-    """
-
-    # ==============================================================================
+    ## ==============================================================================
     # META DATA LOADING
     # %%============================================================================
 
@@ -136,13 +125,13 @@ if __name__ == '__main__':
     # ==============================================================================
     # PROCESSING LOOP
     # %%============================================================================
-    for subject in list(subjects):  # [list(subjects)[1]]:  # list(subjects): #
-        # ----------------------------
+    for subject in [list(subjects)[1]]:  #   # list(subjects): #
+        ## ----------------------------
         # RAW DATA LOADING AND PREPROCESSING
         # %%--------------------------
+
         fig_dir_sub = fig_dir + subject + os.path.sep
-        if not os.path.exists(fig_dir_sub):
-            os.makedirs(fig_dir_sub)  # create results directory if needed
+        zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
 
         # load subject data
         """
@@ -154,20 +143,23 @@ if __name__ == '__main__':
         """
 
         # clean loop variable
-        runs = []
-        labels = []
-        events = []
-
+        runs = []    # list of the mne raw sessions
+        labels = []  # list of str for each experimental condition (one per session)
+        # events = []  # numpy containing the events time, offset and code (see MNE). Only used if events available file.
+        group= []    #
+        indsession = 0
         # load raw data
         for root, dirs, files in os.walk(os.path.join(data_dir, datasetname)):
             for file in files:
                 if file.startswith(subject):
                     filepath = os.path.join(root, file)
-                    runs.append(mne.io.read_raw_fif(filepath, verbose="ERROR"))  # load data
-                    # events=mne.read_events(filepath)
-                    labels.append(file.split('_')[1])
+                    runs.append(mne.io.read_raw_fif(filepath, verbose="ERROR"))  # load and append data session
+                    # events=mne.read_events(filepath)  # only if available
+                    labels.append(file.split('_')[1])   # append experimental condition
+                    group.append(indsession)            # append session number
+                    indsession = indsession+1
 
-        eventscode = dict(zip(np.unique(runs[0]._annotations.description), [0, 1]))
+        #eventscode = dict(zip(np.unique(runs[0]._annotations.description), [0, 1]))
 
         runs_0 = list(compress(runs, [x == 'low' for x in labels]))
         runs_1 = list(compress(runs, [x == 'high' for x in labels]))
@@ -175,43 +167,10 @@ if __name__ == '__main__':
         raw_0 = mne.concatenate_raws(runs_0)
         raw_1 = mne.concatenate_raws(runs_1)
 
-        # rename table for event to annotations
-        event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-
-        # vizualization
-        if SaveFig:
-            scalings = dict(eeg=10e1)
-            mne.viz.plot_raw(raw_0, scalings=scalings)
-
-        timestamps = np.round(raw_0._annotations.onset * raw_0.info['sfreq']).astype(int)
-
-        raw_0._annotations.duration
-        event_id = {'BAD_data': 0, 'bad EPOCH': 100}
-
-        labels = raw_0._annotations.description
-        labels = np.vectorize(event_id0.__getitem__)(labels)  # convert labels into int
-
-        events = np.concatenate((timestamps.reshape(-1, 1),
-                                 np.zeros(timestamps.shape).astype(int).reshape(-1, 1),
-                                 labels.reshape(-1, 1)), axis=1)
-        # events visualizatiobn
-        if SaveFig:
-            color = {0: 'green', 100: 'red'}
-            mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
-                                event_id=event_id)
-
-        # the difference between two full stimuli windows should be 7 sec.
-        raw_0.n_times
-        events = events[events[:, 2] == 0, :]  # keep only auditory stimuli
-        stimt = np.append(events[:, 0], raw_0.n_times)  # stim interval
-        epoch2keep = np.where(np.diff(stimt) == 3500)[0]  # keep only epoch of 7sec
-        epoch2drop = np.where(np.diff(stimt) != 3500)[0]
-        events = events[epoch2keep, :]
-
         print("subject " + subject + " data loaded")
 
 
-        # ----------------------------
+        ## ----------------------------
         # epoching
         # %%--------------------------
         if operations_to_apply["epoching"]:
@@ -220,6 +179,7 @@ if __name__ == '__main__':
             # extract events from annotations
             event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
             event_id1 = {'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+            # tmp[0],tmp[1], tmp[2]: events, epochs2keep, epochs2drop
             tmp = zeta.data.stim.get_events(raw_0, event_id0)
             events0 = tmp[0][tmp[1], :]
             tmp = zeta.data.stim.get_events(raw_1, event_id1)
@@ -243,6 +203,7 @@ if __name__ == '__main__':
         # %%--------------------------
 
         epochs = mne.concatenate_epochs([epochs0, epochs1])
+
         if operations_to_apply["cla_ERP_TS_LR"]:
             # %% 1
             PipelineTitle = 'cla_ERP_TS_LR'
@@ -266,7 +227,7 @@ if __name__ == '__main__':
                 # 'preproc__filters': [([1, 30],)],
                 'xdawn__estimator': ['lwf'],
                 'xdawn__xdawn_estimator': ['lwf'],
-                'xdawn__nfilter': [8],
+                'xdawn__nfilter': [12],
                 # 'xdawn__bins':[[x for x in [0,20,40,60,80,100]]],
                 # 'LASSO__cv': [inner_cv],  # static
                 # 'LASSO__random_state': [42],  # static
@@ -288,7 +249,7 @@ if __name__ == '__main__':
 
             # check cross validation
             fig, ax = plt.subplots()
-            # zeta.viz.classif.plot_cv_indices(outer_cv,X,y,)
+            zeta.viz.classif.plot_cv_indices(outer_cv,X,y,ax=ax)
 
             pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
             # ----------------------------

@@ -3,6 +3,7 @@
 import sklearn.metrics as metrics
 import numpy as np
 import pandas
+import matplotlib.pyplot as plt
 
 
 def ShowClassificationResults(y,predicted,PipelineTitle='',ax=None):
@@ -32,8 +33,15 @@ def ShowRegressionResults(y,predicted,PipelineTitle='',ax=None):
                 verticalalignment='center',
                 transform=ax.transAxes)
 
-def plot_cv_indices(cv, X, y, group, ax, n_splits, lw=10):
+def plot_cv_indices(cv, X, y, group=None, ax=None, n_splits=5, lw=10,
+                    cmap_data = plt.cm.Paired,
+                    cmap_cv = plt.cm.coolwarm):
     """Create a sample plot for indices of a cross-validation object."""
+    if group==None:
+        group=[x for x in range(0,len(y))]  # by default give the indice of the epoch
+
+    if ax==None:
+        fig, ax = plt.subplots()
 
     # Generate the training/testing visualizations for each CV split
     for ii, (tr, tt) in enumerate(cv.split(X=X, y=y, groups=group)):
