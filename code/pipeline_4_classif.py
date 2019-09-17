@@ -288,7 +288,7 @@ if __name__ == '__main__':
 
             # check cross validation
             fig, ax = plt.subplots()
-            zeta.viz.classif.plot_cv_indices(outer_cv,X,y,)
+            # zeta.viz.classif.plot_cv_indices(outer_cv,X,y,)
 
             pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
             # ----------------------------
