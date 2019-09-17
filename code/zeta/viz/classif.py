@@ -8,7 +8,7 @@ import pandas
 def ShowClassificationResults(y,predicted,PipelineTitle='',ax=None):
     print(PipelineTitle+': AUC=%.2f' % metrics.roc_auc_score(y,predicted))
     report = metrics.classification_report(y,predicted)
-    print(report)
+    # print(report)
     if ax is not None:
         # TODO: plot auc ROC here
         print("zeta.viz.classif.ShowClassificationResults: Figure not configured")

@@ -64,7 +64,7 @@ if __name__ == '__main__':
         TFR=0,  # Time-Frequency Response for each epoch
         TFR_av=0,  # Time-Frequency Response Averaging
         TFR_stats=0,  # Compute inter-trials statistics on TFR
-        cla_ERPCovMDM=1
+        cla_ERP_TS_LR=1
     )
     verbose = 'ERROR'
     subject = 1
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     # ==============================================================================
     # PROCESSING LOOP
     # %%============================================================================
-    for subject in [list(subjects)[1]]:  # list(subjects): #
+    for subject in list(subjects):  # [list(subjects)[1]]:  # list(subjects): #
         # ----------------------------
         # RAW DATA LOADING AND PREPROCESSING
         # %%--------------------------
@@ -243,9 +243,9 @@ if __name__ == '__main__':
         # %%--------------------------
 
         epochs = mne.concatenate_epochs([epochs0, epochs1])
-        if operations_to_apply["cla_ERPCovMDM"]:
+        if operations_to_apply["cla_ERP_TS_LR"]:
             # %% 1
-            PipelineTitle = 'cla_ERPCovMDM'
+            PipelineTitle = 'cla_ERP_TS_LR'
             PipelineNb = 0
             doGridSearch = 0
             n_splits=5

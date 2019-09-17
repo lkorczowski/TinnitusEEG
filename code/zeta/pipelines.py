@@ -14,7 +14,7 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
     """ load pre-existing pipelines
     """
     pipeline = []
-    if pipe_name == 'cla_ERPCovMDM':
+    if pipe_name == 'cla_ERP_TS_LR':
         # pipeline using Xdawn with MDM
         pipeline = sklearn.pipeline.Pipeline([
             ('xdawn', pyriemann.estimation.XdawnCovariances())
