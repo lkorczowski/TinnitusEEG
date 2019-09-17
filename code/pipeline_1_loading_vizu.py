@@ -78,7 +78,7 @@ if __name__ == '__main__':
          os.chdir("F:\\git\\TinnitusEEG\\code")
          data_dir = os.path.join("F:\\","data",'Zeta')
          fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
-    elif configID=='MBP-de-Louis':
+    elif configID=='MacBook-Pro-de-Louis.local':
          os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
          data_dir = os.path.join("/Volumes/Ext/","data",'Zeta')
          fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'

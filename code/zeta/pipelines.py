@@ -1,6 +1,5 @@
 """Zeta Classification pipeline estimations"""
 
-
 from sklearn.base import BaseEstimator, TransformerMixin
 import sklearn
 import pyriemann
@@ -10,75 +9,88 @@ from pyriemann.estimation import XdawnCovariances
 from pyriemann.spatialfilters import Xdawn
 import pandas as pd
 
+
 def CreatesFeatsPipeline(pipe_name, init_params=None):
     """ load pre-existing pipelines
     """
-    pipeline=[]
-    if pipe_name=='ERP':
+    pipeline = []
+    if pipe_name == 'cla_ERPCovMDM':
+        # pipeline using Xdawn with MDM
+        pipeline = sklearn.pipeline.Pipeline([
+            ('xdawn', pyriemann.estimation.XdawnCovariances())
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('lr', sklearn.linear_model.LogisticRegression())
+        ])
+        print(pipe_name + " initialized")
+    elif pipe_name == 'cla_ERP_LR':
+        pipeline = sklearn.pipeline.Pipeline([
+            ('preproc', Epochs2signals())
+            , ('xdawn', pyriemann.estimation.XdawnCovariances())
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('lr', sklearn.linear_model.LogisticRegression())
+        ])
+    elif pipe_name == 'reg_ERP':
+        # pipeline using Xdawn in the tangent space (regression)
+        pipeline = sklearn.pipeline.Pipeline([
+            ('preproc', Epochs2signals())
+            , ('xdawn', XdawnCovariancesRegression())
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('LASSO', sklearn.linear_model.LassoCV())
+        ])
+    elif pipe_name == 'reg_ERP_svr':
         # pipeline using Xdawn in the tangent space
         pipeline = sklearn.pipeline.Pipeline([
-             ('preproc',Epochs2signals())  
-             ,('xdawn', XdawnCovariancesRegression())
-             ,('TS',pyriemann.tangentspace.TangentSpace())
-             ,('LASSO',sklearn.linear_model.LassoCV())
-             ])
-    elif pipe_name=='ERP_svr':
-        # pipeline using Xdawn in the tangent space
-        pipeline = sklearn.pipeline.Pipeline([
-             ('preproc',Epochs2signals())  
-             ,('xdawn', XdawnCovariancesRegression())
-             ,('TS',pyriemann.tangentspace.TangentSpace())
-             ,('LASSO', sklearn.model_selection.GridSearchCV(sklearn.svm.SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1),cv=5,param_grid={"C": [1e0, 1e1, 1e2, 1e3],
-                               "gamma": np.logspace(-2, 2, 5)}))
-             ])
-    elif pipe_name=='ERP_LR':
-     pipeline = sklearn.pipeline.Pipeline([
-                    ('preproc',Epochs2signals())  
-                    ,('xdawn',pyriemann.estimation.XdawnCovariances())
-                    ,('TS',pyriemann.tangentspace.TangentSpace())
-                    ,('lr',sklearn.linear_model.LogisticRegression())
-                    ])
-    elif pipe_name=='FilterBank':
-        f_list=range(len(init_params['preproc__filters']))
+            ('preproc', Epochs2signals())
+            , ('xdawn', XdawnCovariancesRegression())
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('LASSO',
+               sklearn.model_selection.GridSearchCV(sklearn.svm.SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1), cv=5,
+                                                    param_grid={"C": [1e0, 1e1, 1e2, 1e3],
+                                                                "gamma": np.logspace(-2, 2, 5)}))
+        ])
 
-        pipFreqs=[]
+    elif pipe_name == 'reg_FilterBank':
+        f_list = range(len(init_params['preproc__filters']))
+        pipFreqs = []
         for freq in f_list:
-            pipFreqs.append(("freq"+str(freq),sklearn.pipeline.Pipeline([
-                 ('CospSelector',CospSelector(f_list=[freq]))
-                 ,('Cov',pyriemann.estimation.Covariances(estimator='lwf'))
-#                 ,('xdawn',XdawnCovariancesRegression(nfilter=8,estimator='lwf',xdawn_estimator='lwf',bins=[0,32,72,100]))
-                 ,('SPOC',pyriemann.spatialfilters.SPoC(nfilter=20,log=False))
-#                 ,('TS',pyriemann.tangentspace.TangentSpace())
-                 ,('cosp2Feats',Cosp2feats())
-                 ])
-                )
-            )
-        union=sklearn.pipeline.FeatureUnion(pipFreqs)
-        
-        
-        pipeline = sklearn.pipeline.Pipeline([   
-             ('preproc',Epochs2signals())
-             ,('union',union)
-             ,('LASSO',sklearn.linear_model.LassoCV())
-             ])
-        pipeline.set_params(**init_params)#initalize the parameters
-    elif pipe_name=='SPOC':
+            pipFreqs.append(("freq" + str(freq), sklearn.pipeline.Pipeline([
+                ('CospSelector', CospSelector(f_list=[freq]))
+                , ('Cov', pyriemann.estimation.Covariances(estimator='lwf'))
+                #                 ,('xdawn',XdawnCovariancesRegression(nfilter=8,estimator='lwf',xdawn_estimator='lwf',bins=[0,32,72,100]))
+                , ('SPOC', pyriemann.spatialfilters.SPoC(nfilter=20, log=False))
+                #                 ,('TS',pyriemann.tangentspace.TangentSpace())
+                , ('cosp2Feats', Cosp2feats())
+            ])
+                             )
+                            )
+        union = sklearn.pipeline.FeatureUnion(pipFreqs)
+
         pipeline = sklearn.pipeline.Pipeline([
-             ('preproc',Epochs2signals())
-             ,('Cov',pyriemann.estimation.Covariances())
-             ,('SPOC',pyriemann.spatialfilters.SPoC())
-             ,('TS',pyriemann.tangentspace.TangentSpace())
-             ,('LASSO',sklearn.linear_model.LassoCV())
-             ])
+            ('preproc', Epochs2signals())
+            , ('union', union)
+            , ('LASSO', sklearn.linear_model.LassoCV())
+        ])
+
+    elif pipe_name == 'reg_SPOC':
+        pipeline = sklearn.pipeline.Pipeline([
+            ('preproc', Epochs2signals())
+            , ('Cov', pyriemann.estimation.Covariances())
+            , ('SPOC', pyriemann.spatialfilters.SPoC())
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('LASSO', sklearn.linear_model.LassoCV())
+        ])
     else:
         print('no pipeline recognized')
-        
+        assert False
+
+    # initialize parameters of the pipeline
     if init_params is not None:
-        pipeline.set_params(**init_params)#initalize the parameters
+        pipeline.set_params(**init_params)  # initialize the parameters
     else:
-        print('CreatesFeatsPipeline: '+pipe_name+' not initialized!')
-                
+        print('CreatesFeatsPipeline: ' + pipe_name + ' not initialized!')
+
     return pipeline
+
 
 class Epochs2signals(BaseEstimator, TransformerMixin):
     """Filters and crops epochs.
@@ -114,21 +126,22 @@ class Epochs2signals(BaseEstimator, TransformerMixin):
     See Also
     --------
     """
+
     def __init__(self, filters=([1, 35],), events=None, tmin=-0.2, tmax=1.0,
-                 channels=None, resample=None,epochsinfo=None,epochstmin=None,
+                 channels=None, resample=None, epochsinfo=None, epochstmin=None,
                  baseline=None):
         self.filters = filters
         self.resample = resample
 
         if (tmax is not None):
             if tmin >= tmax:
-                raise(ValueError("tmax must be greater than tmin"))
+                raise (ValueError("tmax must be greater than tmin"))
 
         self.tmin = tmin
         self.tmax = tmax
-        self.epochsinfo=epochsinfo
-        self.epochstmin=epochstmin
-        self.baseline=baseline
+        self.epochsinfo = epochsinfo
+        self.epochstmin = epochstmin
+        self.baseline = baseline
 
     def fit(self, X, y=None):
         """Fit.
@@ -146,30 +159,29 @@ class Epochs2signals(BaseEstimator, TransformerMixin):
     def transform(self, X):
         """Convert epochs from mne format to numpy array
         """
-        if str(type(X))=="<class 'mne.epochs.Epochs'>":
-            epochs=X.copy()
-        elif str(type(X))=="<class 'numpy.ndarray'>":                
-            #build mne structure (need epochs as input)
-            epochs = mne.EpochsArray(X, info=self.epochsinfo,tmin=self.epochstmin)
+        if str(type(X)) == "<class 'mne.epochs.Epochs'>":
+            epochs = X.copy()
+        elif str(type(X)) == "<class 'numpy.ndarray'>":
+            # build mne structure (need epochs as input)
+            epochs = mne.EpochsArray(X, info=self.epochsinfo, tmin=self.epochstmin)
         X = []
         for bandpass in self.filters:
             fmin, fmax = bandpass
             # filter epoched data
-            
-            epochs.filter(l_freq=fmin,h_freq=fmax,verbose=True)
+
+            epochs.filter(l_freq=fmin, h_freq=fmax, verbose=True)
             if self.resample is not None:
                 epochs.resample(sfreq=self.resample)
-            
+
             # crop epochs (important for removing edge effects)
-            epochs.crop(tmin=self.tmin,tmax=self.tmax)
-            
+            epochs.crop(tmin=self.tmin, tmax=self.tmax)
+
             if self.baseline is not None:
-                epochs.apply_baseline(self.baseline,verbose=False)
-            
+                epochs.apply_baseline(self.baseline, verbose=False)
+
             # MNE is in V, rescale to have uV
             X.append(1e6 * epochs.get_data())
-            
-        
+
         # if only one band, return a 3D array, otherwise return a 4D
         if len(self.filters) == 1:
             X = X[0]
@@ -177,6 +189,7 @@ class Epochs2signals(BaseEstimator, TransformerMixin):
             X = np.array(X).transpose((1, 2, 3, 0))
 
         return X
+
 
 class CospSelector(BaseEstimator, TransformerMixin):
     """select meaningfull covariances from 4D matrices
@@ -198,6 +211,7 @@ class CospSelector(BaseEstimator, TransformerMixin):
     HankelCovariances
     Cosp2feats
     """
+
     def __init__(self, f_list=None):
         """Init."""
         self.f_list = f_list
@@ -234,10 +248,11 @@ class CospSelector(BaseEstimator, TransformerMixin):
         out : ndarray, shape (n_trials, n_channels*(n_channels+1)*n_freq/2)
             ndarray of features from covariances
         """
-        _,_,_,Nf=X.shape
-        if self.f_list==None:
-            self.f_list=range(Nf)
-        return np.squeeze(X[:,:,:,self.f_list])
+        _, _, _, Nf = X.shape
+        if self.f_list == None:
+            self.f_list = range(Nf)
+        return np.squeeze(X[:, :, :, self.f_list])
+
 
 class Cosp2feats(BaseEstimator, TransformerMixin):
     """transform 4D matrices to features
@@ -294,35 +309,35 @@ class Cosp2feats(BaseEstimator, TransformerMixin):
         out : ndarray, shape (n_trials, n_channels*(n_channels+1)*n_freq/2)
             ndarray of features from covariances
         """
-        if X.ndim==4:
-            Nt, Ne, _ , Nf = X.shape
+        if X.ndim == 4:
+            Nt, Ne, _, Nf = X.shape
         else:
             Nt, Ne, _ = X.shape
-            Nf=1
-            
+            Nf = 1
+
         out = []
-        iu1=np.triu_indices(Ne)
-        
-        if self.f_list==None:
-            self.f_list=range(Nf)
+        iu1 = np.triu_indices(Ne)
+
+        if self.f_list == None:
+            self.f_list = range(Nf)
 
         for i in range(Nt):
-            tmp=[]
-            if Nf>1:
+            tmp = []
+            if Nf > 1:
                 for f in self.f_list:
-                    S = X[i,:,:,f]
-                    feats=S[iu1]
+                    S = X[i, :, :, f]
+                    feats = S[iu1]
                     tmp.append(feats)
             else:
-                S = X[i,:,:]
-                feats=S[iu1]
+                S = X[i, :, :]
+                feats = S[iu1]
                 tmp.append(feats)
             out.append(np.asarray(np.array(tmp).reshape(-1)))
 
         return np.array(out)
-    
-class XdawnCovariancesRegression(XdawnCovariances):
 
+
+class XdawnCovariancesRegression(XdawnCovariances):
     """Estimate special form covariance matrix for ERP combined with Xdawn.
 
     Estimation of special form covariance matrix dedicated to ERP processing
@@ -379,7 +394,7 @@ class XdawnCovariancesRegression(XdawnCovariances):
         self.classes = classes
         self.nfilter = nfilter
         self.baseline_cov = baseline_cov
-        self.bins=bins
+        self.bins = bins
 
     def fit(self, X, y):
         """Fit.
@@ -398,52 +413,46 @@ class XdawnCovariancesRegression(XdawnCovariances):
         self : XdawnCovariances instance
             The XdawnCovariances instance.
         """
-        
 
-        yb=continuous2discrete(y,self.bins)
+        yb = continuous2discrete(y, self.bins)
         self.Xd_ = Xdawn(nfilter=self.nfilter, classes=self.classes,
                          estimator=self.xdawn_estimator,
                          baseline_cov=self.baseline_cov)
-        
+
         self.Xd_.fit(X, yb)
         self.P_ = self.Xd_.evokeds_
 
         return self
-    
 
 
 ###############################################################################
-        
-def continuous2discrete(y,bins):
+
+def continuous2discrete(y, bins):
     """convert continuous labels to discrete
     
         Usefull when facing with method only using discrete number of class.
     """
-    #TODO: not elegant at all but efficient and tested. Can be implemented.
+    # TODO: not elegant at all but efficient and tested. Can be implemented.
     if bins is None:
-        yb=y
+        yb = y
     else:
-        if len(bins)==3:#2 classes
-            yb=[0 if num<=bins[1] else 1 for num in y] 
-        elif len(bins)==4:#3 classes
-            yb=[0 if num<=bins[1] else 1 if bins[1]<=num<bins[2] else 2 for num in y] #3 class
-        elif len(bins)==5:#4 classes
-            yb=[0 if num<=bins[1] else 1 if bins[1]<=num<bins[2] else 2 if bins[2]<=num<bins[3] 
-                else 3 for num in y] #3 class
-        elif len(bins)==6:#5 classes
-            yb=[0 if num<=bins[1] else 1 if bins[1]<=num<bins[2] else 2 if bins[2]<=num<bins[3] 
-                else 3 if bins[3]<=num<bins[4] else 4 for num in y] #3 class
+        if len(bins) == 3:  # 2 classes
+            yb = [0 if num <= bins[1] else 1 for num in y]
+        elif len(bins) == 4:  # 3 classes
+            yb = [0 if num <= bins[1] else 1 if bins[1] <= num < bins[2] else 2 for num in y]  # 3 class
+        elif len(bins) == 5:  # 4 classes
+            yb = [0 if num <= bins[1] else 1 if bins[1] <= num < bins[2] else 2 if bins[2] <= num < bins[3]
+            else 3 for num in y]  # 3 class
+        elif len(bins) == 6:  # 5 classes
+            yb = [0 if num <= bins[1] else 1 if bins[1] <= num < bins[2] else 2 if bins[2] <= num < bins[3]
+            else 3 if bins[3] <= num < bins[4] else 4 for num in y]  # 3 class
         else:
             raise ValueError("wrong number of bins")
-    assert ("class in bins range with not a single epoch",len(bins)-1==len(np.unique(yb)))
+    assert ("class in bins range with not a single epoch", len(bins) - 1 == len(np.unique(yb)))
     return yb
 
 
-
-
-
 class ERPCovariancesRegression(pyriemann.estimation.ERPCovariances):
-
     """Estimate special form covariance matrix for ERP. (ALTERNATIVE for regression)
 
     Estimation of special form covariance matrix dedicated to ERP processing.
@@ -500,7 +509,6 @@ class ERPCovariancesRegression(pyriemann.estimation.ERPCovariances):
     cerveau-machine EEG", 24eme colloque GRETSI, 2013.
     """
 
-
     def fit(self, X, y):
         """Fit.
 
@@ -521,8 +529,8 @@ class ERPCovariancesRegression(pyriemann.estimation.ERPCovariances):
         if self.classes is not None:
             classes = self.classes
         else:
-            classes = [pd.Interval(left=y.min(),right=y.max(),closed='both')]
-            
+            classes = [pd.Interval(left=y.min(), right=y.max(), closed='both')]
+
         self.P_ = []
         for c in classes:
             # Prototyped responce for each class
