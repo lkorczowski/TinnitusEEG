@@ -21,7 +21,6 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('lr', sklearn.linear_model.LogisticRegression())
         ])
-        print(pipe_name + " initialized")
     elif pipe_name == 'cla_ERP_LR':
         pipeline = sklearn.pipeline.Pipeline([
             ('preproc', Epochs2signals())

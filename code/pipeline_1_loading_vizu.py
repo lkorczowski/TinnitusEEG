@@ -2,17 +2,10 @@
 """
 Vizualize data and performance event-related statistics
 
-Input:
-    - 
-Output:
-    - 
-    
-@author: louis.korczowski@gmail.com
+:Authors:
+    Louis Korczowski <louis.korczowski@gmail.com>
 
-PROPERTY OF Zeta Technologies
-CONFIDENTIAL
-
-history:
+:history:
     | V1.2 2019-09-23 Refactored to integrate util and configuration modules
     | v1.1 2019-09-2O added datasets module integration (finally!)
     | v1.0 2019-09-18 added CSP
@@ -25,6 +18,8 @@ history:
     | v0.2 2019-07-15 annotation to events convertion
     | v0.1 2019-07-11 pipeline creation
 
+PROPERTY OF Zeta Technologies
+CONFIDENTIAL
 """
 #execution section
 import pandas as pd
@@ -64,7 +59,14 @@ if __name__ == '__main__':
     resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
     ForceSave=False #if set True, will overwrite previous results in Pickle
     SaveFig=False #if set True, will overwrite previous figure in folder  resultsID
-    
+
+    verbose='ERROR'
+
+    data_dir, output_dir = zeta.configuration.load_directories()
+    fig_dir=output_dir+os.path.sep+resultsID+os.path.sep   # pipeline output directory
+    zeta.util.mkdir(fig_dir)                            # create results directory if needed
+
+    # pipeline_1 specific configuration
     operations_to_apply=dict(
             epoching=1,
             GFP=0,       # Global Field Power
@@ -73,31 +75,6 @@ if __name__ == '__main__':
             TFR_stats=0,  # Compute inter-trials statistics on TFR
             CSP=1
             )
-    verbose='ERROR'
-
-    """
-    #for automatic folder path use, add the elif: for your machine ID below
-    configID=socket.gethostname()
-    if configID=='your_machine_name':
-        print("not configured")
-    elif configID=='Crimson-Box':
-        #os.chdir("F:\\git\\TinnitusEEG\\code")
-        data_dir = os.path.join("F:\\", "data", 'Zeta')
-        fig_dir = os.path.join("D:\\", "GoogleDrive", "Zeta Technologies", "Zeta_shared", "results")
-    elif configID=='MacBook-Pro-de-Louis.local':
-        #os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
-        data_dir = os.path.join("/Volumes/Ext/", "data", 'Zeta')
-        fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
-    else:
-        print('configuration.py not recognize, please add the path of your git directories')
-
-    zeta
-    # WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
-    """
-    data_dir, output_dir = zeta.configuration.load_directories()
-    fig_dir=output_dir+os.path.sep+resultsID+os.path.sep   # pipeline output directory
-    zeta.util.mkdir(fig_dir)                            # create results directory if needed
-    
     #==============================================================================
     # META DATA LOADING 
     #%%============================================================================  
@@ -117,16 +94,6 @@ if __name__ == '__main__':
             #%%--------------------------
             fig_dir_sub=fig_dir+subject+os.path.sep
             zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
-
-
-            #load subject data
-            """
-            note here that the EEG data are in µV while MNE use V. Therefore scale 
-            is with a 1e6 factor andit could cause a problem for non-linear related MNE
-            analysing. I advice to apply a 1e-6 factor in the future to make sure that
-            everything is working fine with mne.
-            For classification, it is adviced to keep data in µV.
-            """
 
             #load raw data
             raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject)
