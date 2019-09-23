@@ -42,18 +42,20 @@ def load_directories():
             |
 
     """
+    data_dir = []
+    output_dir = []
     config_id = socket.gethostname()
     if config_id == 'your_machine_name':
         print("not configured")
     elif config_id == 'Crimson-Box':
-        os.chdir("F:\\git\\TinnitusEEG\\code")
+        #os.chdir("F:\\git\\TinnitusEEG\\code")
         data_dir = os.path.join("F:\\", "data", 'Zeta')
         output_dir = os.path.join("D:\\", "GoogleDrive", "Zeta Technologies", "Zeta_shared", "results")
-    elif config_id == 'MacBook-Pro-de-Louis.local':
-        os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
+    elif config_id == 'MacBook-Pro-de-Louis.local' or 'MBP-de-Louis':
+        #os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
         data_dir = os.path.join("/Volumes/Ext/", "data", 'Zeta')
         output_dir = '/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
     else:
-        print('config not recognize, please add the path of your git directories')
+        print('configuration.py not recognize, please add the path of your git directories')
 
     return data_dir, output_dir

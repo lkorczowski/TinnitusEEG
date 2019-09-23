@@ -7,6 +7,7 @@
 
 import pickle
 import os
+import sys
 
 
 def save(variable,
@@ -27,3 +28,13 @@ def mkdir(target_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
+def blockPrint():
+    """Disable print() function (useful for verbose functions)
+    use enablePrint() to restore print function
+    """
+    sys.stdout = open(os.devnull, 'w')
+
+#
+def enablePrint():
+    """Restore print() function after the use of blockPrint()"""
+    sys.stdout = sys.__stdout__

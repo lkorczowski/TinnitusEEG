@@ -13,6 +13,8 @@ PROPERTY OF Zeta Technologies
 CONFIDENTIAL
 
 history:
+    | V1.2 2019-09-23 Refactored to integrate util and configuration modules
+    | v1.1 2019-09-2O added datasets module integration (finally!)
     | v1.0 2019-09-18 added CSP
     | v0.71 2019-08-21 backup v0.5, pickle integration
     | v0.7 2019-07-27 group-level integration (CANCELED)
@@ -54,10 +56,11 @@ if __name__ == '__main__':
     #%%============================================================================
     """" CONFIGURE PATHS 
     This section will be integrate into zeta module with a use of 
-    config file prepared for each computer."""
+    configuration.py file prepared for each computer."""
     # TODO: integrate this section into a module or a yalm file
     
-    
+    datasetname="raw_clean_32"
+
     resultsID='pipeline_1_test' #set ID for output directory (will remplace any former results with same ID)
     ForceSave=False #if set True, will overwrite previous results in Pickle
     SaveFig=False #if set True, will overwrite previous figure in folder  resultsID
@@ -71,85 +74,49 @@ if __name__ == '__main__':
             CSP=1
             )
     verbose='ERROR'
-    subject=1
-    patient =2 #patient group (static for a given dataset)
-    session =9 #6 = 1 old remplacer apres (session 'high')
-    ses2=8  # (session 'low')
-    datasetname="raw_clean_32"
-    
+
+    """
     #for automatic folder path use, add the elif: for your machine ID below
     configID=socket.gethostname()
     if configID=='your_machine_name':
         print("not configured")
     elif configID=='Crimson-Box':
-         os.chdir("F:\\git\\TinnitusEEG\\code")
-         data_dir = os.path.join("F:\\","data",'Zeta')
-         fig_dir = os.path.join("D:\\", "GoogleDrive","Zeta Technologies","Zeta_shared","results")
+        #os.chdir("F:\\git\\TinnitusEEG\\code")
+        data_dir = os.path.join("F:\\", "data", 'Zeta')
+        fig_dir = os.path.join("D:\\", "GoogleDrive", "Zeta Technologies", "Zeta_shared", "results")
     elif configID=='MacBook-Pro-de-Louis.local':
-         os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
-         data_dir = os.path.join("/Volumes/Ext/","data",'Zeta')
-         fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
+        #os.chdir("/Volumes/Ext/git/TinnitusEEG/code")
+        data_dir = os.path.join("/Volumes/Ext/", "data", 'Zeta')
+        fig_dir='/Users/louis/Google Drive/Zeta Technologies/Zeta_shared/results'
     else:
-        print('config not recognize, please add the path of your git directories')
-    #WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
+        print('configuration.py not recognize, please add the path of your git directories')
 
-    fig_dir=fig_dir+os.path.sep+resultsID+os.path.sep #pipeline output directory
-    if not os.path.exists(fig_dir):
-        os.makedirs(fig_dir) #create results directory if needed
-    
+    zeta
+    # WARNING : "\\" is used for windows, "/" is used for unix (or 'os.path.sep')
     """
-    subjects=['patientPC', '5CA09', '05AY22', 'patient', '05GS16', '04MM25', 
-          '1TG01', '05RP24', '3QO03', '5CD05', '5DN04', '05IN17', '05VP19', 
-          'GS', '05MP21', '5DL08', '05BY20', '05DF18', '05MV11', '5NA09',
-          'CQ', '5BB03', '05FV18', '5BY10', '04LK03', '04LM02', '05RM12',
-          '2SN14', 'QE', '3NT07', '5GF07']  #obsolete, generated below
-    # please note that 'patient_CR' is NOT a good name as the sparse with '_' is not
-    # compatible with the other files. I recommand renamed it to 'patientCR' or 'CR'
-    """
+    data_dir, output_dir = zeta.configuration.load_directories()
+    fig_dir=output_dir+os.path.sep+resultsID+os.path.sep   # pipeline output directory
+    zeta.util.mkdir(fig_dir)                            # create results directory if needed
     
     #==============================================================================
     # META DATA LOADING 
     #%%============================================================================  
-    
-    names = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(session)))
-    names2 = os.listdir(os.path.join(data_dir, datasetname, str(patient)+ "_"+ str(ses2)))
-    
-    pat=[]
-    pat2=[]
-    for name in names:
-        #print name.split('_')[0]
-        pat.append(name.split('_')[0]) #all subjects ID from names
-    for name in names2:
-        #print name.split('_')[0]
-        pat2.append(name.split('_')[0]) #all subjects ID from names2
-        
-    cong={} #build of dictionnary of all session for each subject
-    for name in names2:
-            if pat.__contains__(name.split('_')[0]):
-                if cong.keys().__contains__(name.split('_')[0]):
-                    cong[name.split('_')[0]].append(name) #add file to the list
-                else:
-                    cong[name.split('_')[0]]=[name] #add first file to the list
-    for name in names:
-            if pat2.__contains__(name.split('_')[0]):
-                cong[name.split('_')[0]].append(name)
-    
-    t=["exacerb","absente","partielle","totale"]
-    subjects=cong.keys()
-    
+
+    subjects=zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys()
+
     #==============================================================================
     # PROCESSING LOOP 
     #%%============================================================================
     auc=[]
     subject_list=[]
-    for subject in list(subjects): # [list(subjects)[1]]: #
+    for subject in list(subjects): #[list(subjects)[1]]: #
+        raw_0, raw_1, events0, events1=[], [], [], []
         try:
             #----------------------------
             # RAW DATA LOADING AND PREPROCESSING
             #%%--------------------------
             fig_dir_sub=fig_dir+subject+os.path.sep
-            if not os.path.exists(fig_dir_sub):
-                os.makedirs(fig_dir_sub) #create results directory if needed
+            zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
 
 
             #load subject data
@@ -161,60 +128,20 @@ if __name__ == '__main__':
             For classification, it is adviced to keep data in µV.
             """
 
-            #clean loop variable
-            runs=[]
-            labels=[]
-            events=[]
-
             #load raw data
-            for root, dirs, files in os.walk(os.path.join(data_dir,datasetname)):
-                for file in files:
-                    if file.startswith(subject):
-                        filepath=os.path.join(root,file)
-                        runs.append(mne.io.read_raw_fif(filepath,verbose="ERROR")) #load data
-                        #events=mne.read_events(filepath)
-                        labels.append(file.split('_')[1])
-
-            eventscode=dict(zip(np.unique(runs[0]._annotations.description),[0,1]))
-
-            runs_0=list(compress(runs,[x=='low' for x in labels]))
-            runs_1=list(compress(runs,[x=='high' for x in labels]))
-
-            raw_0=mne.concatenate_raws(runs_0)
-            raw_1=mne.concatenate_raws(runs_1)
-
-            #rename table for event to annotations
-            event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary':100,'EDGE boundary':100}
+            raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject)
 
             #vizualization
             if SaveFig:
                 scalings=dict(eeg=10e1)
                 mne.viz.plot_raw(raw_0,scalings=scalings)
 
-            timestamps=np.round(raw_0._annotations.onset*raw_0.info['sfreq']).astype(int)
-
-            raw_0._annotations.duration
-            event_id = {'BAD_data': 0, 'bad EPOCH': 100}
-
-            labels=raw_0._annotations.description
-            labels=np.vectorize(event_id0.__getitem__)(labels) #convert labels into int
-
-            events=np.concatenate((timestamps.reshape(-1,1),
-                                       np.zeros(timestamps.shape).astype(int).reshape(-1,1),
-                                       labels.reshape(-1,1)),axis=1)
             # events visualizatiobn
             if SaveFig:
+                event_id = {'BAD_data': 0, 'bad EPOCH': 100}
                 color = {0: 'green', 100: 'red'}
-                mne.viz.plot_events(events, raw_0.info['sfreq'], raw_0.first_samp, color=color,
+                mne.viz.plot_events(events0, raw_0.info['sfreq'], raw_0.first_samp, color=color,
                                 event_id=event_id)
-
-            # the difference between two full stimuli windows should be 7 sec.
-            raw_0.n_times
-            events=events[events[:,2]==0,:] #keep only auditory stimuli
-            stimt=np.append(events[:,0],raw_0.n_times) #stim interval
-            epoch2keep=np.where(np.diff(stimt)==3500)[0] #keep only epoch of 7sec
-            epoch2drop=np.where(np.diff(stimt)!=3500)[0]
-            events=events[epoch2keep,:]
 
             print("subject "+subject+" data loaded")
 
@@ -447,12 +374,14 @@ if __name__ == '__main__':
                 tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
                 y = tmp.events[:, 2]
 
-                # ncomp
-                ncomp
+                # ncomp=
+                # todo: add ncomp to plot more csp features (now only one)
 
                 # run CSP
+                zeta.util.blockPrint()  # to clean the terminal
                 csp = mne.decoding.CSP(reg='ledoit_wolf')
                 csp.fit(X, y)
+                zeta.util.enablePrint() # restore print
 
                 # compute spatial filtered spectrum
 
@@ -511,11 +440,14 @@ if __name__ == '__main__':
                 plt.savefig(fig_dir+'spatial_pattern_subject_'+ subject+ '.png', bbox_inches='tight')
 
                 # run cross validation
+                zeta.util.blockPrint()  # to have a clean terminal
                 clf = sklearn.pipeline.make_pipeline(mne.decoding.CSP(),
                                                      sklearn.linear_model.LogisticRegression(solver="lbfgs"))
                 cv = sklearn.model_selection.StratifiedKFold(n_splits=5)
                 auc.append(sklearn.model_selection.cross_val_score(clf, X, y, cv=cv, scoring='roc_auc').mean())
-                subject_list.append(subject)
+                zeta.util.enablePrint()
+
+                subject_list.append(subject)  # restore print
                 print("Subject "+ subject +" : AUC cross val score : %.3f" % ( auc[-1]))
         except:
             print('could load and process the subject '+ subject)
