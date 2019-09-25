@@ -2,18 +2,24 @@
 
 import sklearn.metrics as metrics
 import numpy as np
-import pandas
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def ShowClassificationResults(y,predicted,PipelineTitle='',ax=None):
-    print(PipelineTitle+': AUC=%.2f' % metrics.roc_auc_score(y,predicted))
-    report = metrics.classification_report(y,predicted)
+def ShowClassificationResults(y,predicted, PipelineTitle='', ax=None):
+    print(PipelineTitle+': AUC=%.2f, AP=%.2f, ACC=%.2f, f1=%.2f' % (metrics.roc_auc_score(y, predicted),
+                                                                    metrics.precision_score(y, predicted),
+                                                                    metrics.accuracy_score(y, predicted),
+                                                                    metrics.f1_score(y, predicted)
+                                                                    )
+          )
+    report = pd.DataFrame(metrics.classification_report(y,predicted, output_dict=True)).transpose()
     # print(report)
     if ax is not None:
         # TODO: plot auc ROC here
         print("zeta.viz.classif.ShowClassificationResults: Figure not configured")
     return report
+
 
 def ShowRegressionResults(y,predicted,PipelineTitle='',ax=None):
     print(PipelineTitle+': R²=%.2f' % metrics.r2_score(y,predicted)+ ' r=%.2f' % np.sqrt(metrics.r2_score(y,predicted))+
@@ -33,11 +39,12 @@ def ShowRegressionResults(y,predicted,PipelineTitle='',ax=None):
                 verticalalignment='center',
                 transform=ax.transAxes)
 
-def plot_cv_indices(cv, X, y, group=None, ax=None, n_splits=5, lw=10,
+
+def plot_cv_indices(cv, X, y, group=[], ax=None, n_splits=5, lw=10,
                     cmap_data = plt.cm.Paired,
                     cmap_cv = plt.cm.coolwarm):
     """Create a sample plot for indices of a cross-validation object."""
-    if group==None:
+    if group == []:
         group=[x for x in range(0,len(y))]  # by default give the indice of the epoch
 
     if ax==None:
@@ -60,12 +67,12 @@ def plot_cv_indices(cv, X, y, group=None, ax=None, n_splits=5, lw=10,
                c=y, marker='_', lw=lw, cmap=cmap_data)
 
     ax.scatter(range(len(X)), [ii + 2.5] * len(X),
-               c=group, marker='_', lw=lw, cmap=cmap_data)
+               c=group, marker='_', lw=lw, cmap=plt.cm.hsv)
 
     # Formatting
     yticklabels = list(range(n_splits)) + ['class', 'group']
     ax.set(yticks=np.arange(n_splits+2) + .5, yticklabels=yticklabels,
            xlabel='Sample index', ylabel="CV iteration",
-           ylim=[n_splits+2.2, -.2], xlim=[0, 100])
+           ylim=[n_splits+2.2, -.2], xlim=[0, len(y)])
     ax.set_title('{}'.format(type(cv).__name__), fontsize=15)
     return ax

@@ -28,6 +28,24 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('lr', sklearn.linear_model.LogisticRegression())
         ])
+    elif pipe_name == 'cla_CSP_LR':
+        pipeline = sklearn.pipeline.Pipeline([
+            ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
+            , ('CSP', pyriemann.spatialfilters.CSP(nfilter=4,log=False))
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('lr', sklearn.linear_model.LogisticRegression(solver='lbfgs'))
+            ])
+    elif pipe_name == 'cla_CSP_MDM':
+        pipeline = sklearn.pipeline.Pipeline([
+            ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
+            , ('CSP', pyriemann.spatialfilters.CSP(nfilter=8, log=False))
+            , ('MDM', pyriemann.classification.MDM())
+        ])
+    elif pipe_name == 'cla_MDM':
+        pipeline = sklearn.pipeline.Pipeline([
+            ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
+            , ('MDM', pyriemann.classification.MDM())
+        ])
     elif pipe_name == 'reg_ERP':
         # pipeline using Xdawn in the tangent space (regression)
         pipeline = sklearn.pipeline.Pipeline([

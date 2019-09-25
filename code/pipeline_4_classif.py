@@ -6,6 +6,9 @@ Classify the data of a given dataset (intra or inter-subject level).
     Louis Korczowski <louis.korczowski@gmail.com>
 
 :history:
+    | v1.4 2019-09-25 integrated groups for the crossvalidation
+    | v1.3 2019-09-25 inter-subject classification working (AUC=0.55 in low versus high stimuli dataset)
+    | v1.2 2019-09-24 inter-subject pipelines deployed
     | v1.1 2019-09-23 refactored: util, datasets and configuration modules + n_minimum_epochs_to_classif
     | v1.0 2019-09-17 minor integrations and documentation
     | v0.5 2019-09-11 working xdawn+LR classification on lowVhigh dataset (AUC>0.9 for most subjects)
@@ -54,7 +57,9 @@ if __name__ == '__main__':
     fig_dir = output_dir + os.path.sep + resultsID + os.path.sep  # pipeline output directory
     zeta.util.mkdir(fig_dir)  # create results directory if needed
 
-    # pipeline_4 specific configuration
+    ## ----------------------------
+    # pipeline_4 specific configuration & preload data
+    # %%---------------------------
 
     n_minimum_epochs_to_classif=20  # assess the minimal number of extracted epochs per class to perform a valid cross-validation
     operations_to_apply = dict(
@@ -63,17 +68,21 @@ if __name__ == '__main__':
         TFR=0,  # Time-Frequency Response for each epoch
         TFR_av=0,  # Time-Frequency Response Averaging
         TFR_stats=0,  # Compute inter-trials statistics on TFR
-        cla_ERP_TS_LR=1
+        cla_ERP_TS_LR=0,
+        inter_subject=1
     )
-
+    rejected_subjects = []
+    all_X = []    # for inter-subject classification
+    all_y = []    # for inter-subject classification
+    groups = []   # for cross-validation segmentation
     #==============================================================================
     # META DATA LOADING
     #%%============================================================================
 
     subjects=zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys()
-    rejected_subjects=[]
 
-    # ==============================================================================
+
+    ## =============================================================================
     # PROCESSING LOOP
     # %%============================================================================
     for subject in list(subjects): # [list(subjects)[1]]:  #   #
@@ -118,7 +127,7 @@ if __name__ == '__main__':
             if (epochs0.__len__()<n_minimum_epochs_to_classif
                     or epochs1.__len__()<n_minimum_epochs_to_classif):
                 rejected_subjects.append(subject)
-                print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(),epochs1.__len__()))
+                print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(), epochs1.__len__()))
 
 
         ## ----------------------------
@@ -205,5 +214,86 @@ if __name__ == '__main__':
                 # ----------------------------
                 pipelineERP = pipeline
                 predictedERP = predicted
+
+            if operations_to_apply["inter_subject"]:
+                X = []
+                tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
+                X = tmp.get_data()
+                y = tmp.events[:, 2]
+                all_X.append(X)
+                all_y.append(y)
+
+    if operations_to_apply["inter_subject"]:
+        ##
+        PipelineTitle="cla_MDM"
+        PipelineNb = 1
+        doGridSearch = 0
+        n_splits = 5
+
+        # ----------------------------
+        # step-1: organize group-based data
+        # ----------------------------
+        X = np.concatenate(all_X)
+        y = np.concatenate(all_y)
+
+        # ----------------------------
+        # step0: Prepare pipeline (hyperparameters & CV)
+        # ----------------------------
+        groups=[]
+        for i in range(len(all_y)):
+            n_epochs = all_y[i].shape[0]
+            groups = np.concatenate((groups, [i] * n_epochs))  # assign each subject to a specific group
+
+        inner_cv = sklearn.model_selection.LeaveOneGroupOut()  # CV for one subject (test) versus all (train)
+        outer_cv = sklearn.model_selection.LeaveOneGroupOut()
+
+        # hyperparameters kept here for compatibility
+        # TODO: use function to integrate hyperparameters more easily using get_params and homemade set_params
+
+        hyperparameters = {}
+
+        init_params = {}
+        for item in hyperparameters:
+            init_params[item] = hyperparameters[item][0]
+
+        # ----------------------------
+        # step1: Prepare pipeline & inputs
+        # ----------------------------
+
+        # check cross validation
+        fig, ax = plt.subplots()
+        zeta.viz.classif.plot_cv_indices(outer_cv, X, y, ax=ax,group=groups)
+        import pyriemann
+        pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
+
+        # ----------------------------
+        # step2: GridSearch
+        # ----------------------------
+
+        if doGridSearch:
+            pipeline = sklearn.model_selection.GridSearchCV(pipeline, hyperparameters, cv=inner_cv, scoring='auc')
+
+        # ----------------------------
+        # step3: Predict in CV
+        # ----------------------------
+
+        time1 = time.time()
+        predicted = sklearn.model_selection.cross_val_predict(pipeline, X=X, y=y, cv=outer_cv, groups=groups)
+        time2 = time.time()
+
+        # ----------------------------
+        # step4: PRINT RESULTS
+        # ----------------------------
+        print(PipelineTitle + ' in %f' % (time2 - time1) + 's')
+
+        # TODO: may be necessary to explicit the CV loop as scoring on whole cv is biaised and doesn't inform to the
+        # TODO: behaviour of the classification in CV
+        report=zeta.viz.classif.ShowClassificationResults(y, predicted, PipelineTitle=PipelineTitle, ax=None)
+
+        # ----------------------------
+        # step5: Save
+        # ----------------------------
+        pipelineERP = pipeline
+        predictedERP = predicted
 
     print("Pipeline 4 DONE")
