@@ -6,6 +6,7 @@ Vizualize data and performance event-related statistics
     Louis Korczowski <louis.korczowski@gmail.com>
 
 :history:
+
     | V1.2 2019-09-23 Refactored to integrate util and configuration modules
     | v1.1 2019-09-2O added datasets module integration (finally!)
     | v1.0 2019-09-18 added CSP
@@ -86,7 +87,7 @@ if __name__ == '__main__':
     #%%============================================================================
     auc=[]
     subject_list=[]
-    for subject in list(subjects): #[list(subjects)[1]]: #
+    for subject in [list(subjects)[1]]: #list(subjects): #
         raw_0, raw_1, events0, events1=[], [], [], []
         try:
             #----------------------------
@@ -428,7 +429,7 @@ if __name__ == '__main__':
         plt.ylabel('AUC')
         plt.title('During Vs. After classification')
         plt.savefig(fig_dir+'cross_val_auc.png', bbox_inches='tight')
-        print("CSP: Inter-subject results saved for %i / %i subjects (couldn' compute for the others)" %(len(auc),len(subjects)))
+        print("CSP: Inter-subject results saved for %i / %i subjects (couldn't compute for the others)" % (len(auc), len(subjects)))
 
 
     print("Pipeline 1 DONE")

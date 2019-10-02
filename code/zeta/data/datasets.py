@@ -1,4 +1,10 @@
-"""Zeta datasets"""
+"""Zeta datasets
+Methods consist
+get_dataset_list()   # get compatible dataset names
+get_subjects_info()  # return a dictionnary of subjects with their sessions
+get_raw()            # return all sessions of a given subject for a given dataset
+
+"""
 
 import mne
 import numpy as np
@@ -23,17 +29,19 @@ def get_dataset_list(data_folder=None):
         if data_folder is known, it will return all the datasets integrated in zeta module.
     """
 
-    known_dataset_list=["raw_clean_32"    # High Versus Low inhibitory Stimuli of Tinnitus and control patients
-                        ]
-    if data_folder == None:
-        dataset_list=known_dataset_list
+    known_dataset_list = ["raw_clean_32",  # High Versus Low inhibitory Stimuli of Tinnitus and control patients
+                          "Distress2010",  # High Versus Low Distress patients (1, 2, 3, 4 Distress)
+                          "NormativeDB"  # Control Patient having the same setup than Distress2010
+                          ]
+    if data_folder is None:
+        dataset_list = known_dataset_list
     else:
-        dataset_list=[]
+        dataset_list = []
         with os.scandir(data_folder) as it:
             for entry in it:
                 if (not entry.name.startswith('.')
                         and not entry.is_file()
-                        and entry.name in known_dataset_list) :
+                        and entry.name in known_dataset_list):
                     dataset_list.append(entry.name)
 
         if len(dataset_list) == 0:
@@ -58,31 +66,77 @@ def get_subjects_info(data_folder, dataset_id):
     """
 
     if dataset_id == "raw_clean_32":
+        """ High Versus Low inhibitory Stimuli of Tinnitus and control patients
+        """
         patient = 2  # patient group (static for a given dataset)
         session = 9  # 6 = 1 old remplacer apres (session 'high')
-        ses2 = 8     # (session 'low')
-        names = os.listdir(os.path.join(data_folder, dataset_id, str(patient)+ "_" + str(session)))
-        names2 = os.listdir(os.path.join(data_folder, dataset_id, str(patient)+ "_" + str(ses2)))
+        ses2 = 8  # (session 'low')
+        names = os.listdir(os.path.join(data_folder, dataset_id, str(patient) + "_" + str(session)))
+        names2 = os.listdir(os.path.join(data_folder, dataset_id, str(patient) + "_" + str(ses2)))
 
-        pat=[]
-        pat2=[]
+        pat = []
+        pat2 = []
         for name in names:
-            #print name.split('_')[0]
-            pat.append(name.split('_')[0]) #all subjects ID from names
+            # print name.split('_')[0]
+            pat.append(name.split('_')[0])  # all subjects ID from names
         for name in names2:
-            #print name.split('_')[0]
-            pat2.append(name.split('_')[0]) #all subjects ID from names2
+            # print name.split('_')[0]
+            pat2.append(name.split('_')[0])  # all subjects ID from names2
 
-        dict_subjects_id={} #build of dictionnary of all session for each subject
+        dict_subjects_id = {}  # build of dictionnary of all session for each subject
         for name in names2:
-                if pat.__contains__(name.split('_')[0]):
-                    if dict_subjects_id.keys().__contains__(name.split('_')[0]):
-                        dict_subjects_id[name.split('_')[0]].append(name) #add file to the list
-                    else:
-                        dict_subjects_id[name.split('_')[0]]=[name] #add first file to the list
+            if pat.__contains__(name.split('_')[0]):
+                if dict_subjects_id.keys().__contains__(name.split('_')[0]):
+                    dict_subjects_id[name.split('_')[0]].append(name)  # add file to the list
+                else:
+                    dict_subjects_id[name.split('_')[0]] = [name]  # add first file to the list
         for name in names:
-                if pat2.__contains__(name.split('_')[0]):
-                    dict_subjects_id[name.split('_')[0]].append(name)
+            if pat2.__contains__(name.split('_')[0]):
+                dict_subjects_id[name.split('_')[0]].append(name)
+
+    elif dataset_id == "Distress2010":
+        """ High Versus Low Distress patients (1, 2, 3, 4 Distress)
+        """
+        sub_high = 'high distress'
+        sub_low = 'low distress'
+        filenames = os.listdir(os.path.join(data_folder, dataset_id, sub_high)) + \
+                os.listdir(os.path.join(data_folder, dataset_id, sub_low))
+
+        # get all subjects ID
+        valid_id = ["1", "2", "3", "4"]  # Distress group (file begin with)
+        valid_info = ["#", "NBN", "LI", "RE", "ICON", "BIL", "PT","128","123","128I","128#","HOLOCRANIAL","HOLO",
+                      "HOLOC","HYPERAC","CONCENTRATIESTN"]  # info to sparse from file name
+
+        dict_subjects_id = {}  # build of dictionnary of all session for each subject
+
+        for filename in filenames:
+            if filename[0] in valid_id:
+                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], valid_info, separator="_")
+                symptoms.append({"distress": filename[0]})
+                paradigm="rest"
+                session_info={"paradigm": paradigm, "symptoms":symptoms}
+
+                try:
+                    dict_subjects_id[subjectname].update(
+                            {filename: session_info}   # add new session
+                        )
+
+                except KeyError:
+                    dict_subjects_id[subjectname] = {filename: session_info}   # create session
+
+
+                #pat.append(filename.split(".")[0])  # all subjects ID from names
+
+                #if dict_subjects_id.keys().__contains__(subjectname):         # subject already exist
+                # #    dict_subjects_id[name.split(".")[0]].append(name)         # add file to the list
+                # else:
+                #     dict_subjects_id[name.split(".")[0]] = [name]             # add first file to the list
+
+
+        # get all session for the given subjects
+        # for name in names:
+        #     if pat.__contains__(name.split(".")[0]):  # check if subject exists (should be)
+
     else:
         print("get_subjects_info: unknown dataset")
 
@@ -109,8 +163,8 @@ def get_raw(data_folder, dataset_id, subject):
         if data_folder is known, it will return all the datasets integrated in zeta module.
     """
 
-    if dataset_id=="raw_clean_32":
-        raw_0, raw_1, events0, events1=get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
+    if dataset_id == "raw_clean_32":
+        raw_0, raw_1, events0, events1 = get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
     else:
         print(dataset_id + ": Unknown dataset, please check compatible dataset using get_dataset_list().")
         print(dataset_id + ": if you want, you can add this dataset to get_dataset_list() and get_raw(),")
@@ -150,6 +204,60 @@ def get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False):
         scalings = dict(eeg=10e1)
         mne.viz.plot_raw(raw_0, scalings=scalings)
 
+    # extract events from annotations
+
+    event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+    event_id1 = {'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+
+    # note: get_events() outputs
+    # tmp[0],tmp[1], tmp[2]: events, epochs2keep, epochs2drop
+    tmp = zeta.data.stim.get_events(raw_0, event_id0)
+    events0 = tmp[0][tmp[1], :]
+    tmp = zeta.data.stim.get_events(raw_1, event_id1)
+    events1 = tmp[0][tmp[1], :]
+
+    # events visualization
+    if ShowFig:
+        fig, ax = plt.subplot(211)
+        color = {0: 'green', 100: 'red'}
+        mne.viz.plot_events(events0, raw_0.info['sfreq'], raw_0.first_samp, color=color,
+                            event_id=event_id0, axes=ax[0])
+        mne.viz.plot_events(events1, raw_0.info['sfreq'], raw_0.first_samp, color=color,
+                            event_id=event_id1, axes=ax[1])
+
+    return raw_0, raw_1, events0, events1
+
+
+def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
+    """ Load Low Versus High Distress Tinnitus patient and control.
+
+    Note here that the EEG data are in µV while MNE use V. Therefore scale
+    is with a 1e6 factor and it could cause a problem for non-linear related MNE
+    analysing. I advice to apply a 1e-6 factor in the future to make sure that
+    everything is working fine with mne.
+    For classification, it is adviced to keep data in µV.
+    """
+
+    # clean loop variable
+    runs = []
+    labels = []
+
+    runs, labels, _, _ = load_sessions_raw(data_folder, dataset_id, subject)  # load all session from this subject
+
+    # split session into conditions
+    runs_0 = list(compress(runs, [x == 'low' for x in labels]))
+    runs_1 = list(compress(runs, [x == 'high' for x in labels]))
+
+    raw_0 = mne.concatenate_raws(runs_0)
+    raw_1 = mne.concatenate_raws(runs_1)
+
+    # rename table for event to annotations
+    event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+
+    # vizualization
+    if ShowFig:
+        scalings = dict(eeg=10e1)
+        mne.viz.plot_raw(raw_0, scalings=scalings)
 
     # extract events from annotations
 
@@ -165,7 +273,7 @@ def get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False):
 
     # events visualization
     if ShowFig:
-        fig,ax=plt.subplot(211)
+        fig, ax = plt.subplot(211)
         color = {0: 'green', 100: 'red'}
         mne.viz.plot_events(events0, raw_0.info['sfreq'], raw_0.first_samp, color=color,
                             event_id=event_id0, axes=ax[0])
@@ -212,12 +320,169 @@ def load_sessions_raw(data_folder, dataset_id, subject):
                     # events=mne.read_events(filepath)  # might be usefull for some dataset
 
                     # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
-                    labels.append(file.split('_')[1])   # stacks session name
+                    labels.append(file.split('_')[1])  # stacks session name
                     sessions_path.append(filepath)
-                    subject_data_found=True
+                    subject_data_found = True
                 except:
                     print("Couldn't load subject " + subject + " session " + file.split('_')[1] + " at " + filepath)
                     bad_sessions_path.append(filepath)
     if len(runs) == 0:
         print("Couldn't load any session of subject " + subject + " in dataset " + dataset_id)
     return runs, labels, sessions_path, bad_sessions_path
+
+def _sparse_info_from_file(filename, valid_id, separator="_"):
+    """ Return a list of symptoms and conditions based on a list of valid_id keywords and return the filtered
+    filename without the keywords.
+    infos, filtered_filename=_sparse_info_from_file(filename, valid_id, separator="_")
+
+        Parameters
+    ----------
+    filename : str
+        filename without the extension ".*" (you can use filename.split(".")[0])
+    valid_id : list of str
+        the keywords correspondings to symptoms or conditions
+    separator : str
+        the separators between keywords (default: separator="_")
+
+    Returns
+    -------
+    infos : list
+        a list of symptoms sparsed from filename
+    filtered_filename : str
+        the filtered filename without the symptoms
+    """
+    infos = []
+
+    all_keys=filename.upper().split(separator)
+    for filekey in all_keys:
+        if filekey in valid_id:
+            infos.append(filekey)
+
+    # rebuild file name from non valid_id keys
+    filtered_filename = separator.join(
+            [filekey for ind, filekey in enumerate(all_keys) if filekey not in valid_id]
+    )
+
+    return infos, filtered_filename
+
+
+# Create Raw file
+def _CreateRaw_T(data):
+    """ Distress Tinnitus dataset (high and low distress)
+    """
+    ch_names = ["Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "T7", "C3", "Cz", "C4", "T8", "P7", "P3", "Pz", "P4", "P8",
+                "O1", "O2"]
+    # ch_names=["FP1", "FP2", "F7", "F3", "FZ", "F4", "F8", "T3", "C3", "CZ", "C4", "T4", "T5", "P3", "PZ", "P4", "T6", "O1", "O2"]
+    ch_types = ['eeg'] * len(ch_names)
+    sfreq = 128
+    montage = 'standard_1020'
+    info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types, montage=montage, verbose=False)
+    raw = mne.io.RawArray(data, info, verbose=False)
+    return (raw)
+
+
+def _CreateRaw_H(data):
+    """ Distress Tinnitus dataset (control)
+    """
+    # ch_names = ["Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "T7", "C3", "Cz", "C4", "T8", "P7", "P3", "Pz", "P4", "P8", "O1", "O2"]
+    ch_names = ["FP1", "FP2", "F7", "F3", "Fz", "F4", "F8", "T3", "C3", "Cz", "C4", "T4", "T5", "P3", "Pz", "P4", "T6",
+                "O1", "O2"]
+    ch_types = ['eeg'] * len(ch_names)
+    sfreq = 128
+    montage = 'standard_1020'
+    info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types, montage=montage, verbose=False)
+    raw = mne.io.RawArray(data, info, verbose=False)
+    return (raw)
+
+
+if __name__ == '__main__':
+    import pandas as pd
+    data_dir, output_dir = zeta.configuration.load_directories()
+    dataset_name = "Distress2010"
+    dict_subjects=get_subjects_info(data_dir, dataset_name)
+    print(pd.DataFrame.from_dict({(i,j): dict_subjects[i][j]
+                                  for i in dict_subjects.keys()
+                                  for j in dict_subjects[i].keys()},
+            orient='index'
+        )
+    )
+
+"""    assert False
+    # stack all subject's sessions
+    for root, dirs, files in os.walk(os.path.join(data_dir, dataset_name)):
+        for file in files:
+            if file.startswith(subject):
+                filepath = os.path.join(root, file)
+                try:
+                    runs.append(mne.io.read_raw_fif(filepath, verbose="ERROR"))  # stacks raw
+                    # events=mne.read_events(filepath)  # might be usefull for some dataset
+
+                    # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
+                    labels.append(file.split('_')[1])  # stacks session name
+                    sessions_path.append(filepath)
+                    subject_data_found = True
+                except:
+                    print("Couldn't load subject " + subject + " session " + file.split('_')[1] + " at " + filepath)
+                    bad_sessions_path.append(filepath)
+
+    sub = 10
+    print(subj[sub])
+    filo = open(subj[sub], "r")
+    compt = 0
+    signal = []
+    for row in filo:
+        if compt == 0:
+            print(row)
+        listy = []
+        listy = row.split(" ")
+        listy = listy[1:]
+        listy[-1] = listy[-1][:-2]
+        # print listy
+        loop = []
+        for elm in listy:
+            if not elm == "":
+                loop.append(elm)
+        loop = [float(loop[i]) for i in range(len(loop))]
+        # print loop
+        # print len(loop)
+        signal.append(loop)
+        compt += 1
+
+    print(compt)
+
+    sub = 0
+    subj = subj[:9]
+    for sub in range(len(subj)):
+        print(subj[sub])
+        filo = open(subj[sub], "r")
+
+        compt = 0
+        signal = []
+        for row in filo:
+            listy = []
+            listy = row.split(" ")
+
+            listy[-1] = listy[-1][:-2]
+            # print listy
+            loop = []
+            for elm in listy:
+                if not elm == "":
+                    loop.append(elm)
+            loop = [float(loop[i]) for i in range(len(loop))]
+            # print loop
+            # print len(loop)
+            if not len(loop) == 19:
+                print(loop)
+                print(len(loop))
+            signal.append(loop)
+            compt += 1
+        print(compt)
+        print(signal[0])
+        print(signal[-1])
+        signal = np.asanyarray(signal)
+        print(len(signal[0]))
+        signal = np.transpose(signal)
+        print(len(signal[-1]))
+        RAW = _CreateRaw_T(signal)
+        RAW.plot(scalings="auto")
+"""
