@@ -45,7 +45,7 @@ if __name__ == '__main__':
     configuration.py file prepared for each computer."""
     # TODO: integrate this section into a module or a yalm file
 
-    datasetnames = ["raw_clean_32"]
+    datasetnames = ["Distress2010", "NormativeDB"]
 
     resultsID = 'pipeline_1_test'  # set ID for output directory (will remplace any former results with same ID)
     ForceSave = False  # if set True, will overwrite previous results in Pickle
@@ -83,13 +83,16 @@ if __name__ == '__main__':
         # META DATA LOADING
         #%%============================================================================
 
-        subjects = zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys()
+        subjects = list(zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys())
+        if datasetname is "Distress2010":
+            subjects.remove("4BAUWENS_SIMONNE_ZONDER_STIM_VIJF_OP_TIEN")
+            subjects.remove("2REYLANDT_ANNICK")
 
 
         ## =============================================================================
         # PROCESSING LOOP
         # %%============================================================================
-        for subject in list(subjects): # [list(subjects)[1]]:  #   #
+        for subject in subjects: # [list(subjects)[1]]:  #   #
             # ----------------------------
             # RAW DATA LOADING AND PREPROCESSING
             # %%--------------------------
@@ -109,14 +112,6 @@ if __name__ == '__main__':
                 plt.close('all')
 
                 if datasetname is "raw_clean_32":
-                    # extract events from annotations
-                    event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-                    event_id1 = {'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-                    # tmp[0],tmp[1], tmp[2]: events, epochs2keep, epochs2drop
-                    tmp = zeta.data.stim.get_events(raw_0, event_id0)
-                    events0 = tmp[0][tmp[1], :]
-                    tmp = zeta.data.stim.get_events(raw_1, event_id1)
-                    events1 = tmp[0][tmp[1], :]
 
                     # extract epochs
                     event_id0, event_id1, tmin, tmax = {'low': 0}, {'high': 1}, 5.6, 7.6
@@ -130,17 +125,31 @@ if __name__ == '__main__':
                                          reject=reject, preload=True, reject_by_annotation=0,
                                          verbose=verbose)
 
+                    if (epochs0.__len__()<n_minimum_epochs_to_classif
+                            or epochs1.__len__()<n_minimum_epochs_to_classif):
+                        rejected_subjects.append(subject)
+                        print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(), epochs1.__len__()))
+
                 else:
-                    print("do something")
+                    # extract epochs
+                    if datasetname is "Distress2010":
+                        event_id0 = {"Tinnitus": 1}
+                    elif datasetname is "NormativeDB":
+                        event_id0 = {"Control": 0}
+
+                    event_id1 = None
+                    tmin, tmax = 0, 1.5
+                    baseline = (None, 0)
+                    reject = dict(eeg=200)
+                    epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
+                                         reject=reject, preload=True, reject_by_annotation=0,
+                                         verbose=verbose)
+
+                    epochs0 = epochs0[0:20]
+                    print("warning: only 10 epochs selected")
+                    epochs1 = None
+
                 print(subject + ": epoching done")
-
-
-
-
-                if (epochs0.__len__()<n_minimum_epochs_to_classif
-                        or epochs1.__len__()<n_minimum_epochs_to_classif):
-                    rejected_subjects.append(subject)
-                    print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(), epochs1.__len__()))
 
 
             ## ----------------------------
@@ -149,8 +158,11 @@ if __name__ == '__main__':
             if subject in rejected_subjects:
                 print(subject + ": skip classification")
             else:
+                if datasetname in ["raw_clean_32"]:
+                    epochs = mne.concatenate_epochs([epochs0, epochs1])
+                elif datasetname in ["NormativeDB","Distress2010","Tinnitus_EEG"]:
+                    epochs = mne.concatenate_epochs([epochs0])
 
-                epochs = mne.concatenate_epochs([epochs0, epochs1])
 
                 if operations_to_apply["cla_ERP_TS_LR"]:
                     # %% 1
@@ -257,8 +269,12 @@ if __name__ == '__main__':
             n_epochs = all_y[i].shape[0]
             groups = np.concatenate((groups, [i] * n_epochs))  # assign each subject to a specific group
 
-        inner_cv = sklearn.model_selection.LeaveOneGroupOut()  # CV for one subject (test) versus all (train)
-        outer_cv = sklearn.model_selection.LeaveOneGroupOut()
+        if "NormativeDB" in datasetnames:
+            inner_cv = sklearn.model_selection.GroupKFold(n_splits=5)  # KFOLD with respect to the user
+            outer_cv = sklearn.model_selection.GroupKFold(n_splits=5)
+        else:
+            inner_cv = sklearn.model_selection.LeaveOneGroupOut()  # CV for one subject (test) versus all (train)
+            outer_cv = sklearn.model_selection.LeaveOneGroupOut()
 
         # hyperparameters kept here for compatibility
         # TODO: use function to integrate hyperparameters more easily using get_params and homemade set_params

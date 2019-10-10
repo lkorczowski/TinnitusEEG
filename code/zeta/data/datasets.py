@@ -184,9 +184,8 @@ def get_raw(data_folder, dataset_id, subject):
 
     if dataset_id in ["raw_clean_32"]: #two conditions experiments
         raw_0, raw_1, events0, events1 = get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
-    if dataset_id in ["Distress2010","NormativeDB"]:
+    elif dataset_id in ["Distress2010","NormativeDB"]:
         raw_0, raw_1, events0, events1 = get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False)
-
     else:
         print(dataset_id + ": Unknown dataset, please check compatible dataset using get_dataset_list().")
         print(dataset_id + ": if you want, you can add this dataset to get_dataset_list() and get_raw(),")
@@ -279,8 +278,10 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
 
     # extract events from annotations
     if dataset_id is "Distress2010":
+        eventcode = 1
         event_id0 = {"Tinnitus": 1}
     elif dataset_id is "NormativeDB":
+        eventcode = 0
         event_id0 = {"Control": 0}
 
     event_id1 = None
@@ -289,7 +290,7 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
     start = 10    # (seconds) remove the beggining
     stop = None    # (seconds) remove the end
     interval = 2  # (seconds) between epochs
-    events0 = mne.make_fixed_length_events(raw_0, id=1, duration=interval, start = start, stop = stop)
+    events0 = mne.make_fixed_length_events(raw_0, id=eventcode, duration=interval, start = start, stop = stop)
     events1 = []
 
     # events visualization
@@ -354,6 +355,9 @@ def load_sessions_raw(data_folder, dataset_id, subject):
                     filepath = os.path.join(root, file)
                     try:
                         data = _txt_to_numpy(filepath)
+                        if data.shape[0] is not 19:
+                            print(data.shape)
+                            print("WARNING")
                         raw = _CreateRaw_T(data)
                         print(raw)
                         runs.append(raw)  # stacks raw
@@ -445,12 +449,10 @@ def _txt_to_numpy(file):
     filo = open(file, "r")
     compt = 0
     signal = []
-
-    # sparse each row
     for row in filo:
         listy = []
-        listy = row.split(" ")  # space separated values
-        listy = listy[1:]       # remove first space
+        listy = row.split(" ")
+
         listy[-1] = listy[-1][:-2]
         # print listy
         loop = []
@@ -458,12 +460,11 @@ def _txt_to_numpy(file):
             if not elm == "":
                 loop.append(elm)
         loop = [float(loop[i]) for i in range(len(loop))]
-
+        # print loop
+        # print len(loop)
         if not len(loop) == 19:
-            print("File not consistent with dataset")
-            print(file)
-            print("_txt_to_numpy: n electrodes = %i" %len(loop))
-
+            print(loop)
+            print(len(loop))
         signal.append(loop)
         compt += 1
 
@@ -537,8 +538,8 @@ def _CreateRaw_H(data):
 
 
 if __name__ == '__main__':
-    testDistress = False
-    testNormativeDB = True
+    testDistress = True
+    testNormativeDB = False
     # test Distress
     if testDistress:
         # example of loading dataset info and doing a panda query for specific subject within this dataset
@@ -560,7 +561,7 @@ if __name__ == '__main__':
 
         # get the raw data from the query
 
-        subject=df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[10]
+        subject=df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[0]
         print(load_sessions_raw(data_dir, dataset_name, subject))
         raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
         epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
@@ -585,7 +586,7 @@ if __name__ == '__main__':
 
         # get the raw data from the query
 
-        subject = df_subjects[(criterion1 & criterion2)].index.get_level_values("subject").to_list()[10]
+        subject = df_subjects[(criterion1 & criterion2)].index.get_level_values("subject").to_list()[0]
         print(load_sessions_raw(data_dir, dataset_name, subject))
         raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
         epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
