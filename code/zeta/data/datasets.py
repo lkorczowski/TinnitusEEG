@@ -31,8 +31,9 @@ def get_dataset_list(data_folder=None):
     """
 
     known_dataset_list = ["raw_clean_32",  # High Versus Low inhibitory Stimuli of Tinnitus and control patients
-                          "Distress2010",  # High Versus Low Distress patients (1, 2, 3, 4 Distress)
-                          "NormativeDB"  # Control Patient having the same setup than Distress2010
+                          "Distress2010",  # Tinnitus Distress patients (1, 2, 3, 4 Distress) - resting state
+                          "NormativeDB",   # Control Patient for Distress2010 - resting state (250+ files)
+                          "Tinnitus_EEG"   # augmented dataset from Distress2010 (300+ subjects)
                           ]
     if data_folder is None:
         dataset_list = known_dataset_list
@@ -125,18 +126,33 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
                     )
 
                 except KeyError:
+                    subjects_info[subjectname] = {filename: session_info}  # create session`
+    elif dataset_id == "NormativeDB":
+        """ Control subjects in resting state
+        """
+        filenames = os.listdir(os.path.join(data_folder, dataset_id, "clean-up", "M")) + \
+                    os.listdir(os.path.join(data_folder, dataset_id, "clean-up", "F"))
+
+        # get all subjects ID
+        valid_id = ["1", "2", "3", "4"]  # Distress group (file begin with)
+        valid_info = ["#", "NBN", "LI", "RE", "ICON", "BIL", "PT", "128", "123", "128I", "128#", "HOLOCRANIAL", "HOLO",
+                      "HOLOC", "HYPERAC", "CONCENTRATIESTN"]  # info to sparse from file name
+
+        for filename in filenames:
+            if filename[0] in valid_id:
+                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], valid_info, separator="_")
+                symptoms.append("Control")
+                symptoms.append({"distress": "0"})
+                paradigm = "rest"
+                session_info = {"paradigm": paradigm, "symptoms": symptoms, "gender": filename[2]}
+
+                try:
+                    subjects_info[subjectname].update(
+                        {filename: session_info}  # add new session
+                    )
+
+                except KeyError:
                     subjects_info[subjectname] = {filename: session_info}  # create session
-
-                # pat.append(filename.split(".")[0])  # all subjects ID from names
-
-                # if dict_subjects_id.keys().__contains__(subjectname):         # subject already exist
-                # #    dict_subjects_id[name.split(".")[0]].append(name)         # add file to the list
-                # else:
-                #     dict_subjects_id[name.split(".")[0]] = [name]             # add first file to the list
-
-        # get all session for the given subjects
-        # for name in names:
-        #     if pat.__contains__(name.split(".")[0]):  # check if subject exists (should be)
 
     else:
         print("get_subjects_info: unknown dataset")
@@ -168,7 +184,7 @@ def get_raw(data_folder, dataset_id, subject):
 
     if dataset_id in ["raw_clean_32"]: #two conditions experiments
         raw_0, raw_1, events0, events1 = get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
-    if dataset_id in ["Distress2010"]:
+    if dataset_id in ["Distress2010","NormativeDB"]:
         raw_0, raw_1, events0, events1 = get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False)
 
     else:
@@ -262,8 +278,11 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
         mne.viz.plot_raw(raw_0, scalings=scalings)
 
     # extract events from annotations
+    if dataset_id is "Distress2010":
+        event_id0 = {"Tinnitus": 1}
+    elif dataset_id is "NormativeDB":
+        event_id0 = {"Control": 0}
 
-    event_id0 = {"epoch":1}
     event_id1 = None
 
     # generate artifical events for the future epoching
@@ -327,7 +346,7 @@ def load_sessions_raw(data_folder, dataset_id, subject):
                     except:
                         print("Couldn't load subject " + subject + " session " + file.split('_')[1] + " at " + filepath)
                         bad_sessions_path.append(filepath)
-    elif dataset_id in ["Distress2010"]:
+    elif dataset_id in ["Distress2010","NormativeDB","Tinnitus_EEG"]:
         # stack all subject's sessions
         for root, dirs, files in os.walk(os.path.join(data_folder, dataset_id)):
             for file in files:
@@ -429,8 +448,6 @@ def _txt_to_numpy(file):
 
     # sparse each row
     for row in filo:
-        if compt == 0:
-            print(row)
         listy = []
         listy = row.split(" ")  # space separated values
         listy = listy[1:]       # remove first space
@@ -450,7 +467,6 @@ def _txt_to_numpy(file):
         signal.append(loop)
         compt += 1
 
-    print(compt)
     signal = np.asanyarray(signal)
     signal = np.transpose(signal)
 
@@ -521,30 +537,58 @@ def _CreateRaw_H(data):
 
 
 if __name__ == '__main__':
+    testDistress = False
+    testNormativeDB = True
+    # test Distress
+    if testDistress:
+        # example of loading dataset info and doing a panda query for specific subject within this dataset
+        data_dir, output_dir = zeta.configuration.load_directories()
+        dataset_name = "Distress2010"
+        dict_subjects = get_subjects_info(data_dir, dataset_name)
 
-    # example of loading dataset info and doing a panda query for specific subject within this dataset
-    data_dir, output_dir = zeta.configuration.load_directories()
-    dataset_name = "Distress2010"
-    dict_subjects = get_subjects_info(data_dir, dataset_name)
+        df_subjects = _subjects_dict_to_pandas(dict_subjects)
 
-    df_subjects = _subjects_dict_to_pandas(dict_subjects)
+        print(df_subjects.index.get_level_values("subject").to_list())
 
-    print(df_subjects.index.get_level_values("subject").to_list())
+        # example of query
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '3'} in x)
+        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': '4'} in x)
+        criterion3 = df_subjects["symptoms"].map(lambda x: "NBN" in x)
+        criterion4 = df_subjects["paradigm"].map(lambda x: x == "rest")
 
-    # example of query
-    criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '3'} in x)
-    criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': '4'} in x)
-    criterion3 = df_subjects["symptoms"].map(lambda x: "NBN" in x)
-    criterion4 = df_subjects["paradigm"].map(lambda x: x == "rest")
+        print(df_subjects[(criterion1 | criterion2) & criterion3 & criterion4])
 
-    print(df_subjects[(criterion1 | criterion2) & criterion3 & criterion4])
+        # get the raw data from the query
 
-    # get the raw data from the query
+        subject=df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[10]
+        print(load_sessions_raw(data_dir, dataset_name, subject))
+        raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
+        epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
 
-    subject=df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[10]
-    print(load_sessions_raw(data_dir, dataset_name, subject))
-    raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
-    epochs=mne.Epochs(raw_0,events0,tmin=0,tmax=2, baseline=(None,0))
+    # test Distress
+    if testNormativeDB:
+        # example of loading dataset info and doing a panda query for specific subject within this dataset
+        data_dir, output_dir = zeta.configuration.load_directories()
+        dataset_name = "NormativeDB"
+        dict_subjects = get_subjects_info(data_dir, dataset_name)
+        dict_subjects.keys()
+
+        df_subjects = _subjects_dict_to_pandas(dict_subjects)
+
+        print(df_subjects.index.get_level_values("subject").to_list())
+
+        # example of query
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '0'} in x)
+        criterion2 = df_subjects["gender"].map(lambda x: "M" in x)
+
+        print(df_subjects[(criterion1 & criterion2)])
+
+        # get the raw data from the query
+
+        subject = df_subjects[(criterion1 & criterion2)].index.get_level_values("subject").to_list()[10]
+        print(load_sessions_raw(data_dir, dataset_name, subject))
+        raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
+        epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
 """    assert False
 
 
