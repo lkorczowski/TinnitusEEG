@@ -45,7 +45,7 @@ if __name__ == '__main__':
     configuration.py file prepared for each computer."""
     # TODO: integrate this section into a module or a yalm file
 
-    datasetname = "raw_clean_32"
+    datasetnames = ["raw_clean_32"]
 
     resultsID = 'pipeline_1_test'  # set ID for output directory (will remplace any former results with same ID)
     ForceSave = False  # if set True, will overwrite previous results in Pickle
@@ -76,152 +76,165 @@ if __name__ == '__main__':
     all_y = []    # for inter-subject classification
     groups = []   # for cross-validation segmentation
     #==============================================================================
-    # META DATA LOADING
+    # DATASET LOOP
     #%%============================================================================
+    for datasetname in datasetnames:
+        #==============================================================================
+        # META DATA LOADING
+        #%%============================================================================
 
-    subjects=zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys()
-
-
-    ## =============================================================================
-    # PROCESSING LOOP
-    # %%============================================================================
-    for subject in list(subjects): # [list(subjects)[1]]:  #   #
-        # ----------------------------
-        # RAW DATA LOADING AND PREPROCESSING
-        # %%--------------------------
-        fig_dir_sub = fig_dir + subject + os.path.sep
-        zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
-
-        # load raw data
-        raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject)
-
-        print(subject + ": data loaded")
-
-        ## ----------------------------
-        # epoching
-        # %%--------------------------
-        if operations_to_apply["epoching"]:
-            #            try:
-            plt.close('all')
-            # extract events from annotations
-            event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-            event_id1 = {'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
-            # tmp[0],tmp[1], tmp[2]: events, epochs2keep, epochs2drop
-            tmp = zeta.data.stim.get_events(raw_0, event_id0)
-            events0 = tmp[0][tmp[1], :]
-            tmp = zeta.data.stim.get_events(raw_1, event_id1)
-            events1 = tmp[0][tmp[1], :]
-
-            # extract epochs
-            event_id0, event_id1, tmin, tmax = {'low': 0}, {'high': 1}, 5.6, 7.6
-            baseline = (None, 5.6)
-            reject = dict(eeg=200)
-            epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
-                                 reject=reject, preload=True, reject_by_annotation=0,
-                                 verbose=verbose)
-
-            epochs1 = mne.Epochs(raw_1, events1, event_id1, tmin, tmax, baseline=baseline,
-                                 reject=reject, preload=True, reject_by_annotation=0,
-                                 verbose=verbose)
-            print(subject + ": epoching done")
-            if (epochs0.__len__()<n_minimum_epochs_to_classif
-                    or epochs1.__len__()<n_minimum_epochs_to_classif):
-                rejected_subjects.append(subject)
-                print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(), epochs1.__len__()))
+        subjects = zeta.data.datasets.get_subjects_info(data_dir, datasetname).keys()
 
 
-        ## ----------------------------
-        # Classification 1
-        # %%--------------------------
-        if subject in rejected_subjects:
-            print(subject + ": skip classification")
-        else:
+        ## =============================================================================
+        # PROCESSING LOOP
+        # %%============================================================================
+        for subject in list(subjects): # [list(subjects)[1]]:  #   #
+            # ----------------------------
+            # RAW DATA LOADING AND PREPROCESSING
+            # %%--------------------------
+            fig_dir_sub = fig_dir + subject + os.path.sep
+            zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
 
-            epochs = mne.concatenate_epochs([epochs0, epochs1])
+            # load raw data
+            raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject)
 
-            if operations_to_apply["cla_ERP_TS_LR"]:
-                # %% 1
-                PipelineTitle = 'cla_ERP_TS_LR'
-                PipelineNb = 0
-                doGridSearch = 0
-                n_splits=5
+            print(subject + ": data loaded")
 
-                # ----------------------------
-                # step0: Prepare pipeline (hyperparameters & CV)
-                # ----------------------------
-                inner_cv = sklearn.model_selection.StratifiedKFold(n_splits=n_splits, random_state=42)
-                outer_cv = sklearn.model_selection.StratifiedKFold(n_splits=n_splits, random_state=42)
+            ## ----------------------------
+            # epoching
+            # %%--------------------------
+            if operations_to_apply["epoching"]:
+                #            try:
+                plt.close('all')
+
+                if datasetname is "raw_clean_32":
+                    # extract events from annotations
+                    event_id0 = {'BAD_data': 0, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+                    event_id1 = {'BAD_data': 1, 'bad EPOCH': 100, 'BAD boundary': 100, 'EDGE boundary': 100}
+                    # tmp[0],tmp[1], tmp[2]: events, epochs2keep, epochs2drop
+                    tmp = zeta.data.stim.get_events(raw_0, event_id0)
+                    events0 = tmp[0][tmp[1], :]
+                    tmp = zeta.data.stim.get_events(raw_1, event_id1)
+                    events1 = tmp[0][tmp[1], :]
+
+                    # extract epochs
+                    event_id0, event_id1, tmin, tmax = {'low': 0}, {'high': 1}, 5.6, 7.6
+                    baseline = (None, 5.6)
+                    reject = dict(eeg=200)
+                    epochs0 = mne.Epochs(raw_0, events0, event_id0, tmin, tmax, baseline=baseline,
+                                         reject=reject, preload=True, reject_by_annotation=0,
+                                         verbose=verbose)
+
+                    epochs1 = mne.Epochs(raw_1, events1, event_id1, tmin, tmax, baseline=baseline,
+                                         reject=reject, preload=True, reject_by_annotation=0,
+                                         verbose=verbose)
+
+                else:
+                    print("do something")
+                print(subject + ": epoching done")
 
 
-                hyperparameters = {
-                    # 'preproc__tmin': [5.6],
-                    # 'preproc__tmax': [7.6],
-                    # 'preproc__epochstmin': [epochs.tmin],  # static
-                    # 'preproc__epochsinfo': [epochs.info],  # static
-                    # 'preproc__baseline': [(None, 5.6)],
-                    # 'preproc__filters': [([1, 30],)],
-                    'xdawn__estimator': ['lwf'],
-                    'xdawn__xdawn_estimator': ['lwf'],
-                    'xdawn__nfilter': [12],
-                    # 'xdawn__bins':[[x for x in [0,20,40,60,80,100]]],
-                    # 'LASSO__cv': [inner_cv],  # static
-                    # 'LASSO__random_state': [42],  # static
-                    # 'LASSO__max_iter': [250]  # static
-                    'lr__solver': ['lbfgs'],
-                }
 
-                init_params = {}
-                for item in hyperparameters:
-                    init_params[item] = hyperparameters[item][0]
 
-                # ----------------------------
-                # step1: Prepare pipeline & inputs
-                # ----------------------------
+                if (epochs0.__len__()<n_minimum_epochs_to_classif
+                        or epochs1.__len__()<n_minimum_epochs_to_classif):
+                    rejected_subjects.append(subject)
+                    print(subject + ": not enough valid epochs. Count: (%i and %i)" %(epochs0.__len__(), epochs1.__len__()))
 
-                X = []
-                tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
-                X = tmp.get_data()
-                y = tmp.events[:, 2]
 
-                # check cross validation
-                fig, ax = plt.subplots()
-                zeta.viz.classif.plot_cv_indices(outer_cv,X,y,ax=ax)
+            ## ----------------------------
+            # Classification 1
+            # %%--------------------------
+            if subject in rejected_subjects:
+                print(subject + ": skip classification")
+            else:
 
-                pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
-                # ----------------------------
-                # step2: GridSearch
-                # ----------------------------
+                epochs = mne.concatenate_epochs([epochs0, epochs1])
 
-                if doGridSearch:
-                    pipeline = sklearn.model_selection.GridSearchCV(pipeline, hyperparameters, cv=inner_cv, scoring='auc')
+                if operations_to_apply["cla_ERP_TS_LR"]:
+                    # %% 1
+                    PipelineTitle = 'cla_ERP_TS_LR'
+                    PipelineNb = 0
+                    doGridSearch = 0
+                    n_splits=5
 
-                # ----------------------------
-                # step3: Predict in CV
-                # ----------------------------
+                    # ----------------------------
+                    # step0: Prepare pipeline (hyperparameters & CV)
+                    # ----------------------------
+                    inner_cv = sklearn.model_selection.StratifiedKFold(n_splits=n_splits, random_state=42)
+                    outer_cv = sklearn.model_selection.StratifiedKFold(n_splits=n_splits, random_state=42)
 
-                time1 = time.time()
-                predicted = sklearn.model_selection.cross_val_predict(pipeline, X=X, y=y, cv=outer_cv)
-                time2 = time.time()
 
-                # ----------------------------
-                # step4: PRINT RESULTS
-                # ----------------------------
-                print(PipelineTitle + ' in %f' % (time2 - time1) + 's')
-                zeta.viz.classif.ShowClassificationResults(y, predicted, PipelineTitle=PipelineTitle, ax=None)
+                    hyperparameters = {
+                        # 'preproc__tmin': [5.6],
+                        # 'preproc__tmax': [7.6],
+                        # 'preproc__epochstmin': [epochs.tmin],  # static
+                        # 'preproc__epochsinfo': [epochs.info],  # static
+                        # 'preproc__baseline': [(None, 5.6)],
+                        # 'preproc__filters': [([1, 30],)],
+                        'xdawn__estimator': ['lwf'],
+                        'xdawn__xdawn_estimator': ['lwf'],
+                        'xdawn__nfilter': [12],
+                        # 'xdawn__bins':[[x for x in [0,20,40,60,80,100]]],
+                        # 'LASSO__cv': [inner_cv],  # static
+                        # 'LASSO__random_state': [42],  # static
+                        # 'LASSO__max_iter': [250]  # static
+                        'lr__solver': ['lbfgs'],
+                    }
 
-                # ----------------------------
-                # step5: Save
-                # ----------------------------
-                pipelineERP = pipeline
-                predictedERP = predicted
+                    init_params = {}
+                    for item in hyperparameters:
+                        init_params[item] = hyperparameters[item][0]
 
-            if operations_to_apply["inter_subject"]:
-                X = []
-                tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
-                X = tmp.get_data()
-                y = tmp.events[:, 2]
-                all_X.append(X)
-                all_y.append(y)
+                    # ----------------------------
+                    # step1: Prepare pipeline & inputs
+                    # ----------------------------
+
+                    X = []
+                    tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
+                    X = tmp.get_data()
+                    y = tmp.events[:, 2]
+
+                    # check cross validation
+                    fig, ax = plt.subplots()
+                    zeta.viz.classif.plot_cv_indices(outer_cv,X,y,ax=ax)
+
+                    pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
+                    # ----------------------------
+                    # step2: GridSearch
+                    # ----------------------------
+
+                    if doGridSearch:
+                        pipeline = sklearn.model_selection.GridSearchCV(pipeline, hyperparameters, cv=inner_cv, scoring='auc')
+
+                    # ----------------------------
+                    # step3: Predict in CV
+                    # ----------------------------
+
+                    time1 = time.time()
+                    predicted = sklearn.model_selection.cross_val_predict(pipeline, X=X, y=y, cv=outer_cv)
+                    time2 = time.time()
+
+                    # ----------------------------
+                    # step4: PRINT RESULTS
+                    # ----------------------------
+                    print(PipelineTitle + ' in %f' % (time2 - time1) + 's')
+                    zeta.viz.classif.ShowClassificationResults(y, predicted, PipelineTitle=PipelineTitle, ax=None)
+
+                    # ----------------------------
+                    # step5: Save
+                    # ----------------------------
+                    pipelineERP = pipeline
+                    predictedERP = predicted
+
+                if operations_to_apply["inter_subject"]:
+                    X = []
+                    tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
+                    X = tmp.get_data()
+                    y = tmp.events[:, 2]
+                    all_X.append(X)
+                    all_y.append(y)
 
     if operations_to_apply["inter_subject"]:
         ##
