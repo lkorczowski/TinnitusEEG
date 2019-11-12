@@ -31,7 +31,7 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
     elif pipe_name == 'cla_CSP_LR':
         pipeline = sklearn.pipeline.Pipeline([
             ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
-            , ('CSP', pyriemann.spatialfilters.CSP(nfilter=4,log=False))
+            , ('CSP', pyriemann.spatialfilters.CSP(nfilter=12,log=False))
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('lr', sklearn.linear_model.LogisticRegression(solver='lbfgs'))
             ])
@@ -90,9 +90,8 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
 
     elif pipe_name == 'reg_SPOC':
         pipeline = sklearn.pipeline.Pipeline([
-            ('preproc', Epochs2signals())
-            , ('Cov', pyriemann.estimation.Covariances())
-            , ('SPOC', pyriemann.spatialfilters.SPoC())
+              ('Cov', pyriemann.estimation.Covariances())
+            , ('SPOC', pyriemann.spatialfilters.SPoC(log=False))
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('LASSO', sklearn.linear_model.LassoCV())
         ])
