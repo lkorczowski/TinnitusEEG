@@ -1,9 +1,38 @@
 """Zeta datasets
-Methods consist
+
+Main Methods
 get_dataset_list()   # get compatible dataset names
 get_subjects_info()  # return a dictionnary of subjects with their sessions
 get_raw()            # return all sessions of a given subject for a given dataset
 
+example
+-------
+copy/paste the following code and it should work (or run datasets.py which include a script section at the bottom)
+
+        # example of loading dataset info and doing a panda query for specific subject within this dataset
+        data_dir, output_dir = zeta.configuration.load_directories()
+        dataset_name = "Distress2010"
+        dict_subjects = get_subjects_info(data_dir, dataset_name)
+
+        df_subjects = _subjects_dict_to_pandas(dict_subjects)
+        print("Number of subjects: %i"%len(df_subjects.index.get_level_values("subject").to_list()))
+
+        print(df_subjects.index.get_level_values("subject").to_list())
+
+        # example of query
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 3} in x)
+        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': 4} in x)
+        criterion3 = df_subjects["symptoms"].map(lambda x: "NBN" in x)
+        criterion4 = df_subjects["paradigm"].map(lambda x: x == "rest")
+
+        print(df_subjects[(criterion1 | criterion2) & criterion3 & criterion4])
+
+        # get the raw data from the query
+
+        subject = df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[0]
+        print(load_sessions_raw(data_dir, dataset_name, subject))
+        raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
+        epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
 """
 
 import mne
@@ -110,13 +139,11 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
 
         # get all subjects ID
         valid_id = ["1", "2", "3", "4"]  # Distress group (file begin with)
-        valid_info = ["#", "NBN", "LI", "RE", "ICON", "BIL", "PT", "128", "123", "128I", "128#", "HOLOCRANIAL", "HOLO",
-                      "HOLOC", "HYPERAC", "CONCENTRATIESTN"]  # info to sparse from file name
 
         for filename in filenames:
             if filename[0] in valid_id:
-                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], valid_info, separator="_")
-                symptoms.append({"distress": filename[0]})
+                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], separator="_")
+                symptoms.append({"distress": int(filename[0])})
                 paradigm = "rest"
                 session_info = {"paradigm": paradigm, "symptoms": symptoms}
 
@@ -127,6 +154,34 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
 
                 except KeyError:
                     subjects_info[subjectname] = {filename: session_info}  # create session`
+    elif dataset_id == "Tinnitus_EEG":
+        """ extended Distress2010 dataset with more than 310 patients
+        """
+        filenames = os.listdir(os.path.join(data_folder, dataset_id))
+        subjects_csv = pd.read_csv(os.path.join(data_folder, dataset_id,"labels_name_cat_TQ_vas.csv"),
+                                    names=["session", "distress", "TQ", "VAS"], index_col="session")
+
+        for filename in filenames:
+            if filename.split(".")[1] == "txt":
+                if np.any(subjects_csv.index.str.match(filename)):
+                    symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], separator="_")
+                    distress_val = int(subjects_csv[subjects_csv.index.str.match(filename)]["distress"].values[0])
+                    TQ_val = int(subjects_csv[subjects_csv.index.str.match(filename)]["TQ"].values[0])
+                    VAS_val = int(subjects_csv[subjects_csv.index.str.match(filename)]["VAS"].values[0])
+
+                    symptoms.append({"distress": distress_val})
+                    paradigm = "rest"
+                    session_info = {"paradigm": paradigm, "symptoms": symptoms, "TQ": TQ_val, "VAS": VAS_val}
+
+                    try:
+                        subjects_info[subjectname].update(
+                            {filename: session_info}  # add new session
+                        )
+                    except KeyError:
+                        subjects_info[subjectname] = {filename: session_info}  # create session`
+                else:
+                    print("file " + filename + " not listed in labels_name_cat_TQ_vas.csv, subject rejected")
+
     elif dataset_id == "NormativeDB":
         """ Control subjects in resting state
         """
@@ -135,14 +190,12 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
 
         # get all subjects ID
         valid_id = ["1", "2", "3", "4"]  # Distress group (file begin with)
-        valid_info = ["#", "NBN", "LI", "RE", "ICON", "BIL", "PT", "128", "123", "128I", "128#", "HOLOCRANIAL", "HOLO",
-                      "HOLOC", "HYPERAC", "CONCENTRATIESTN"]  # info to sparse from file name
 
         for filename in filenames:
-            if filename[0] in valid_id:
-                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], valid_info, separator="_")
+            if not (filename.split(".")[0][-2:] == "EC"):  # remove eyes closed
+                symptoms, subjectname = _sparse_info_from_file(filename.split(".")[0], separator="_")
                 symptoms.append("Control")
-                symptoms.append({"distress": "0"})
+                symptoms.append({"distress": int(0)})
                 paradigm = "rest"
                 session_info = {"paradigm": paradigm, "symptoms": symptoms, "gender": filename[2]}
 
@@ -150,7 +203,6 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
                     subjects_info[subjectname].update(
                         {filename: session_info}  # add new session
                     )
-
                 except KeyError:
                     subjects_info[subjectname] = {filename: session_info}  # create session
 
@@ -184,7 +236,7 @@ def get_raw(data_folder, dataset_id, subject):
 
     if dataset_id in ["raw_clean_32"]: #two conditions experiments
         raw_0, raw_1, events0, events1 = get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
-    elif dataset_id in ["Distress2010","NormativeDB"]:
+    elif dataset_id in ["Distress2010","NormativeDB","Tinnitus_EEG"]:
         raw_0, raw_1, events0, events1 = get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False)
     else:
         print(dataset_id + ": Unknown dataset, please check compatible dataset using get_dataset_list().")
@@ -264,7 +316,6 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
     labels = []
 
     runs, labels, _, _ = load_sessions_raw(data_folder, dataset_id, subject)  # load all session from this subject
-
     raw_0 = mne.concatenate_raws(runs)
     raw_1 = []
 
@@ -278,8 +329,13 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
 
     # extract events from annotations
     if dataset_id is "Distress2010":
+        #eventcode = round(int(subject[0]) / 2 - 0.51)
+        eventcode = int(subject[0])
+        event_id0 = None
+    elif dataset_id is "Tinnitus_EEG":
+        print("get_dataset_distress warning: Tinnitus_EEG distress scale hardcoded, please add the distress level")
         eventcode = 1
-        event_id0 = {"Tinnitus": 1}
+        event_id0 = None
     elif dataset_id is "NormativeDB":
         eventcode = 0
         event_id0 = {"Control": 0}
@@ -334,48 +390,52 @@ def load_sessions_raw(data_folder, dataset_id, subject):
         # stack all subject's sessions
         for root, dirs, files in os.walk(os.path.join(data_folder, dataset_id)):
             for file in files:
-                if file.startswith(subject):
-                    filepath = os.path.join(root, file)
-                    try:
-                        runs.append(mne.io.read_raw_fif(filepath, verbose="ERROR"))  # stacks raw
-                        # events=mne.read_events(filepath)  # might be usefull for some dataset
+                if _isvalid_file(file):
+                    _, subj = _sparse_info_from_file(file.split(".")[0])
+                    if subj == subject:
+                        filepath = os.path.join(root, file)
+                        try:
+                            runs.append(mne.io.read_raw_fif(filepath, verbose="ERROR"))  # stacks raw
+                            # events=mne.read_events(filepath)  # might be usefull for some dataset
 
-                        # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
-                        labels.append(file.split('_')[1])  # stacks session name
-                        sessions_path.append(filepath)
-                        subject_data_found = True
-                    except:
-                        print("Couldn't load subject " + subject + " session " + file.split('_')[1] + " at " + filepath)
-                        bad_sessions_path.append(filepath)
+                            # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
+                            labels.append(file.split('_')[1])  # stacks session name
+                            sessions_path.append(filepath)
+                            subject_data_found = True
+                        except:
+                            print("Couldn't load subject " + subject + " session " + file.split('_')[1] + " at " + filepath)
+                            bad_sessions_path.append(filepath)
     elif dataset_id in ["Distress2010","NormativeDB","Tinnitus_EEG"]:
         # stack all subject's sessions
         for root, dirs, files in os.walk(os.path.join(data_folder, dataset_id)):
-            for file in files:
-                if file.upper().startswith(subject):
-                    filepath = os.path.join(root, file)
-                    try:
-                        data = _txt_to_numpy(filepath)
-                        if data.shape[0] is not 19:
-                            print(data.shape)
-                            print("WARNING")
-                        raw = _CreateRaw_T(data)
-                        print(raw)
-                        runs.append(raw)  # stacks raw
+            for file in files: # TODO: problem here
+                if _isvalid_file(file):
+                    _, subj = _sparse_info_from_file(file.split(".")[0])
+                    if subj == subject:
+                        filepath = os.path.join(root, file)
+                        try:
+                            data = _txt_to_numpy(filepath)
+                            if data.shape[0] is not 19:
+                                print(data.shape)
+                                print("WARNING")
+                            raw = _CreateRaw_T(data)
+                            print(raw)
+                            runs.append(raw)  # stacks raw
 
-                        # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
-                        labels.append("rest")  # stacks session name
+                            # WARNING: hardcoded label position could be troublesome in some dataset, check carefully
+                            labels.append("rest")  # stacks session name
 
-                        sessions_path.append(filepath)
-                        subject_data_found = True
-                    except:
-                        print("Couldn't load subject " + subject + " at " + filepath)
-                        bad_sessions_path.append(filepath)
+                            sessions_path.append(filepath)
+                            subject_data_found = True
+                        except:
+                            print("Couldn't load subject " + subject + " at " + filepath)
+                            bad_sessions_path.append(filepath)
     if len(runs) == 0:
         print("Couldn't load any session of subject " + subject + " in dataset " + dataset_id)
     return runs, labels, sessions_path, bad_sessions_path
 
 
-def _sparse_info_from_file(filename, valid_id, separator="_"):
+def _sparse_info_from_file(filename, valid_id = None, separator="_"):
     """ Return a list of symptoms and conditions based on a list of valid_id keywords and return the filtered
     filename without the keywords.
     infos, filtered_filename=_sparse_info_from_file(filename, valid_id, separator="_")
@@ -397,8 +457,12 @@ def _sparse_info_from_file(filename, valid_id, separator="_"):
         the filtered filename without the symptoms
     """
     infos = []
+    if valid_id is None:
+        valid_id = ["#", "NBN", "LI", "RE", "ICON", "BIL", "PT", "128", "123", "128I", "128#", "HOLOCRANIAL", "HOLO",
+                      "HOLOC", "HYPERAC", "CONCENTRATIESTN", "ACOUSTISCHE", "HALLUCINATIE", "HOLOCRANIEEL", "PULSATIEL","SF"]
 
-    all_keys = filename.upper().split(separator)
+        # reformate and sparse info from filename
+    all_keys = filename.replace('+', '_').replace('-', '_').upper().split(separator)
     for filekey in all_keys:
         if filekey in valid_id:
             infos.append(filekey)
@@ -410,6 +474,23 @@ def _sparse_info_from_file(filename, valid_id, separator="_"):
 
     return infos, filtered_filename
 
+def _isvalid_file(filename):
+    """ Return True if the file is a potential readable data file
+
+        Parameters
+    ----------
+    filename : str
+        filename without the extension ".*" (you can use filename.split(".")[0])
+
+    Returns
+    -------
+    thisisavalidfile : bool
+    """
+    thisisavalidfile = True
+    if (filename[0] == ".") or (filename[0] == "_") or not ((filename.split(".")[-1] == "txt") or (filename.split(".")[-1] == "csv")):
+        thisisavalidfile = False
+
+    return thisisavalidfile
 
 def _subjects_dict_to_pandas(dict_subjects):
     """Convert nested dictionary of subject/session to a MultiIndexed pandas structure
@@ -422,8 +503,8 @@ def _subjects_dict_to_pandas(dict_subjects):
     Example of Filtering with multiple criteria:
        ```
         # get Distress3 and Distress4 with NBN and "rest" paradigm only
-        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '3'} in x)
-        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': '4'} in x)
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 3} in x)
+        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': 4} in x)
         criterion3 = df_subjects["symptoms"].map(lambda x: "NBN" in x)
         criterion4 = df_subjects["paradigm"].map(lambda x: x == "rest")
         df_filtered = df_subjects[(criterion1 | criterion2) & criterion3 & criterion4]
@@ -471,40 +552,6 @@ def _txt_to_numpy(file):
     signal = np.asanyarray(signal)
     signal = np.transpose(signal)
 
-    # sub = 0
-    # subj = subj[:9]
-    # for sub in range(len(subj)):
-    #     print(subj[sub])
-    #     filo = open(subj[sub], "r")
-    #
-    #     compt = 0
-    #     signal = []
-    #     for row in filo:
-    #         listy = []
-    #         listy = row.split(" ")
-    #
-    #         listy[-1] = listy[-1][:-2]
-    #         # print listy
-    #         loop = []
-    #         for elm in listy:
-    #             if not elm == "":
-    #                 loop.append(elm)
-    #         loop = [float(loop[i]) for i in range(len(loop))]
-    #         # print loop
-    #         # print len(loop)
-    #         if not len(loop) == 19:
-    #             print(loop)
-    #             print(len(loop))
-    #         signal.append(loop)
-    #         compt += 1
-    #     print(compt)
-    #     print(signal[0])
-    #     print(signal[-1])
-    #     signal = np.asanyarray(signal)
-    #     print(len(signal[0]))
-    #     signal = np.transpose(signal)
-    #     print(len(signal[-1]))
-
     return signal
 
 
@@ -539,7 +586,8 @@ def _CreateRaw_H(data):
 
 if __name__ == '__main__':
     testDistress = True
-    testNormativeDB = False
+    testNormativeDB = True
+    testTinnitus = True
     # test Distress
     if testDistress:
         # example of loading dataset info and doing a panda query for specific subject within this dataset
@@ -548,12 +596,13 @@ if __name__ == '__main__':
         dict_subjects = get_subjects_info(data_dir, dataset_name)
 
         df_subjects = _subjects_dict_to_pandas(dict_subjects)
+        print("Number of subjects: %i"%len(df_subjects.index.get_level_values("subject").to_list()))
 
         print(df_subjects.index.get_level_values("subject").to_list())
 
         # example of query
-        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '3'} in x)
-        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': '4'} in x)
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 3} in x)
+        criterion2 = df_subjects["symptoms"].map(lambda x: {'distress': 4} in x)
         criterion3 = df_subjects["symptoms"].map(lambda x: "NBN" in x)
         criterion4 = df_subjects["paradigm"].map(lambda x: x == "rest")
 
@@ -561,7 +610,7 @@ if __name__ == '__main__':
 
         # get the raw data from the query
 
-        subject=df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[0]
+        subject = df_subjects[(criterion1 | criterion2) & criterion3 & criterion4].index.get_level_values("subject").to_list()[0]
         print(load_sessions_raw(data_dir, dataset_name, subject))
         raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
         epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
@@ -575,11 +624,12 @@ if __name__ == '__main__':
         dict_subjects.keys()
 
         df_subjects = _subjects_dict_to_pandas(dict_subjects)
+        print("Number of subjects: %i"%len(df_subjects.index.get_level_values("subject").to_list()))
 
         print(df_subjects.index.get_level_values("subject").to_list())
 
         # example of query
-        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': '0'} in x)
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 0} in x)
         criterion2 = df_subjects["gender"].map(lambda x: "M" in x)
 
         print(df_subjects[(criterion1 & criterion2)])
@@ -590,67 +640,30 @@ if __name__ == '__main__':
         print(load_sessions_raw(data_dir, dataset_name, subject))
         raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
         epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
-"""    assert False
 
+    if testTinnitus:
+        # example of loading dataset info and doing a panda query for specific subject within this dataset
+        data_dir, output_dir = zeta.configuration.load_directories()
+        dataset_name = "Tinnitus_EEG"
+        dict_subjects = get_subjects_info(data_dir, dataset_name)
+        dict_subjects.keys()
 
-    sub = 10
-    print(subj[sub])
-    filo = open(subj[sub], "r")
-    compt = 0
-    signal = []
-    for row in filo:
-        if compt == 0:
-            print(row)
-        listy = []
-        listy = row.split(" ")
-        listy = listy[1:]
-        listy[-1] = listy[-1][:-2]
-        # print listy
-        loop = []
-        for elm in listy:
-            if not elm == "":
-                loop.append(elm)
-        loop = [float(loop[i]) for i in range(len(loop))]
-        # print loop
-        # print len(loop)
-        signal.append(loop)
-        compt += 1
+        df_subjects = _subjects_dict_to_pandas(dict_subjects)
+        print("Number of subjects: %i"%len(df_subjects.index.get_level_values("subject").to_list()))
 
-    print(compt)
+        print(df_subjects.index.get_level_values("subject").to_list())
 
-    sub = 0
-    subj = subj[:9]
-    for sub in range(len(subj)):
-        print(subj[sub])
-        filo = open(subj[sub], "r")
+        # example of query
+        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 1} in x)
 
-        compt = 0
-        signal = []
-        for row in filo:
-            listy = []
-            listy = row.split(" ")
+        print(df_subjects[(criterion1)])
 
-            listy[-1] = listy[-1][:-2]
-            # print listy
-            loop = []
-            for elm in listy:
-                if not elm == "":
-                    loop.append(elm)
-            loop = [float(loop[i]) for i in range(len(loop))]
-            # print loop
-            # print len(loop)
-            if not len(loop) == 19:
-                print(loop)
-                print(len(loop))
-            signal.append(loop)
-            compt += 1
-        print(compt)
-        print(signal[0])
-        print(signal[-1])
-        signal = np.asanyarray(signal)
-        print(len(signal[0]))
-        signal = np.transpose(signal)
-        print(len(signal[-1]))
-        RAW = _CreateRaw_T(signal)
-        RAW.plot(scalings="auto")
-"""
+        # get the raw data from the query
+
+        subject = df_subjects[(criterion1)].index.get_level_values("subject").to_list()[0]
+        print(load_sessions_raw(data_dir, dataset_name, subject))
+        raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
+        epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))
+
+    subjects_info=pd.read_csv("/Volumes/Ext/data/Zeta/Tinnitus_EEG/labels_name_cat_TQ_vas.csv",names=["session","distress","TQ","VAS"],index_col="session")
+    print(int(subjects_info[subjects_info.index.str.match("AELBRECHT_MICHAEL_PT_BIL_128_ICON.txt")]["distress"].values[0]))
