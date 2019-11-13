@@ -556,8 +556,9 @@ def _txt_to_numpy(file):
 
 
 # Create Raw file
-def _CreateRaw_T(data):
+def _CreateRaw_T(data, y = None):
     """ Distress Tinnitus dataset (high and low distress)
+    Valid datasets: Tinnitus_EEG, Distress2010,
     """
     ch_names = ["Fp1", "Fp2", "F7", "F3", "Fz", "F4", "F8", "T7", "C3", "Cz", "C4", "T8", "P7", "P3", "Pz", "P4", "P8",
                 "O1", "O2"]
@@ -566,7 +567,19 @@ def _CreateRaw_T(data):
     sfreq = 128
     montage = 'standard_1020'
     info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types, montage=montage, verbose=False)
-    raw = mne.io.RawArray(data, info, verbose=False)
+    if data.ndim > 2:
+        if (y is None):
+            events = None
+            event_id = None
+        else:
+            timestamps = np.arange(0, data.shape[0] * (data.shape[2]), data.shape[2]) # artifical timestamps
+            events = np.concatenate((timestamps.reshape(-1, 1),
+                                     np.zeros(timestamps.shape).astype(int).reshape(-1, 1),
+                                     y.reshape(-1, 1)), axis=1)
+            event_id = {"control": 0, "tinnitus": 1}
+        raw = mne.EpochsArray(data, info, events=events, event_id=event_id, verbose=False)
+    else:
+        raw = mne.io.RawArray(data, info, verbose=False)
     return raw
 
 

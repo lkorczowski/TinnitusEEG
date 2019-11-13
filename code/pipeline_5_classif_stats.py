@@ -52,3 +52,33 @@ if __name__ == '__main__':
     zeta.util.mkdir(fig_dir)  # create results directory if needed
 
     pd_results = pd.read_csv(os.path.join(output_dir, "results_classif.csv"))
+
+    subjects = pd_results["subject"].unique()
+    pipeline_nb = pd_results["pipeline_nb"].unique()
+
+    # create a new dataset from different pipelines
+    data = []
+    y = []
+    for subject in subjects:
+        data_sub= []
+        for indp in pipeline_nb:
+            data_sub.append(pd_results.loc[(pd_results["subject"] == subject) & (pd_results["pipeline_nb"] == indp)]["predicted"].values)
+        if len(data_sub[0]) == 50:
+            data.append(np.array(data_sub))
+            assert np.unique(pd_results.loc[(pd_results["subject"] == subject)]["target"].values).size == 1
+            y.append(np.unique(pd_results.loc[(pd_results["subject"] == subject)]["target"].values)[0])
+        else:
+            print("unconsistant number of epochs for ML %i"%len(data_sub[0]))
+
+    data = np.array(data)
+
+    pipeline = zeta.pipelines.CreatesFeatsPipeline("vot_ADA")
+
+    n_splits = 5
+    outer_cv = sklearn.model_selection.StratifiedKFold(n_splits=n_splits)
+
+    time1 = time.time()
+    score = sklearn.model_selection.cross_val_score(pipeline, X=data.reshape(data.shape[0],-1), y=y, cv=outer_cv,scoring='roc_auc')
+    time2 = time.time()
+    bestauc = pd_results["auc"].values.max()
+    print("new auc %.3f (+/- %.3f std) versus best auc %.3f" % (np.mean(score),np.std(score),bestauc))

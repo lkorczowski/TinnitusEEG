@@ -8,6 +8,8 @@ import mne
 from pyriemann.estimation import XdawnCovariances
 from pyriemann.spatialfilters import Xdawn
 import pandas as pd
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 
 def CreatesFeatsPipeline(pipe_name, init_params=None):
@@ -95,6 +97,12 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('LASSO', sklearn.linear_model.LassoCV())
         ])
+
+    elif pipe_name == "vot_ADA":
+        pipeline = AdaBoostClassifier(DecisionTreeClassifier(max_depth=3),
+                                 algorithm="SAMME",
+                                 n_estimators=200)
+
     else:
         print('no pipeline recognized')
         assert False

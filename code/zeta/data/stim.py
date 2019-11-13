@@ -1,6 +1,7 @@
 """Zeta stimulis and annotation convertion"""
 import numpy as np
 
+
 def get_events(raw,event_id,offset=0):
     """ Get events from specific Zeta dataset. 
         Events are extracted from annotations.
@@ -44,24 +45,26 @@ def get_events(raw,event_id,offset=0):
     TODO: [] compatibility for different datasets
     
     """
-    #extract time stamps from annotations
-    timestamps=np.round(raw._annotations.onset*raw.info['sfreq']+offset).astype(int)
-    assert np.all(timestamps<raw.n_times), "offset overflow total data length"
-    #get labels
-    labels=raw._annotations.description
-    labels=np.vectorize(event_id.__getitem__)(labels) #convert labels into int
+    # extract time stamps from annotations
+    timestamps = np.round(raw._annotations.onset*raw.info['sfreq']+offset).astype(int)
+    assert np.all(timestamps < raw.n_times), "offset overflow total data length"
+
+    # get labels
+    labels = raw._annotations.description
+    labels = np.vectorize(event_id.__getitem__)(labels) #convert labels into int
     
-    #build event matrix
-    events=np.concatenate((timestamps.reshape(-1,1),
+    # build event matrix
+    events = np.concatenate((timestamps.reshape(-1,1),
                                np.zeros(timestamps.shape).astype(int).reshape(-1,1),
                                labels.reshape(-1,1)),axis=1)
         
     # the difference between two full stimuli windows should be 7 sec. 
-    events=events[events[:,2]<100,:] #keep only events and remove annotations
+    events = events[events[:, 2] < 100, :] #keep only events and remove annotations
+
+    assert np.unique(events[:, 2]).size ==1 #TODO: make it works for different events
     
-    assert np.unique(events[:,2]).size==1 #TODO: make it works for different events
-    
-    stimt=np.append(events[:,0],raw.n_times) #stim interval
-    epochs2keep=np.where(np.diff(stimt)==raw.info['sfreq']*7)[0] #TODO: keep only epoch of 7sec (make it an argument)
-    epochs2drop=np.where(np.diff(stimt)!=raw.info['sfreq']*7)[0] #drop the rest
+    stimt = np.append(events[:, 0], raw.n_times) #stim interval
+    epochs2keep = np.where(np.diff(stimt) == raw.info['sfreq']*7)[0] #TODO: keep only epoch of 7sec (make it an argument)
+    epochs2drop = np.where(np.diff(stimt) != raw.info['sfreq']*7)[0] #drop the rest
+
     return events, epochs2keep, epochs2drop
