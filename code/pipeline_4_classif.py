@@ -6,7 +6,8 @@ Classify the data of a given dataset (intra or inter-subject level).
     Louis Korczowski <louis.korczowski@gmail.com>
 
 :history:
-    | v3.0 2019-11-11 Tinnitus_EEG versus NormativeDB
+    | v3.1 2019-11-13 added group-level regression
+    | v3.0 2019-11-11 Tinnitus_EEG versus NormativeDB: AUC: 0.926
     | v2.5 2019-10-29 Multi-pipeline integration and results reporting
     | v2.0 2019-10-10 Distress2010 versus NormativeDB: AUC=0.88
     | v1.5 2019-10-07 adding multi-dataset support ("Distress2010", "NormativeDB", "Tinnitus_EEG" added)
@@ -50,9 +51,9 @@ if __name__ == '__main__':
     configuration.py file prepared for each computer."""
     # TODO: integrate this section into a module or a yalm file
 
-    datasetnames = ["Tinnitus_EEG","NormativeDB"]
+    datasetnames = ["Tinnitus_EEG"]
 
-    resultsID = 'pipeline_1_test'  # set ID for output directory (will remplace any former results with same ID)
+    resultsID = 'test2'  # set ID for output directory (will remplace any former results with same ID)
     ForceSave = True  # if set True, will overwrite previous results in Pickle
     SaveFig = False  # if set True, will overwrite previous figure in folder  resultsID
 
@@ -62,26 +63,22 @@ if __name__ == '__main__':
     fig_dir = output_dir + os.path.sep + resultsID + os.path.sep  # pipeline output directory
     zeta.util.mkdir(fig_dir)  # create results directory if needed
 
-    resultsCSV = os.path.join(output_dir, "results_classif.csv")
-
     ## ----------------------------
     # pipeline_4 specific configuration & preload data
     # %%---------------------------
 
-    n_minimum_epochs_to_classif=1  # assess the minimal number of extracted epochs per class to perform a valid cross-validation
-    max_epochs = 50 # WARNING: just to speed up computation
+    n_minimum_epochs_to_classif=1     # assess the minimal number of extracted epochs per class to perform a valid cross-validation
+    max_epochs = 50                   # WARNING: just to speed up computation
+    amplitudeThreshold =  None        # max RMS amplitude in a given epoch (set to value supérieur of 50 to remove artifacts)
     operations_to_apply = dict(
+        INTRA_SUBJECT=0,              # set to 1 to compute data for inter_subjects. if 0, will try to load data from file and will skip all following operations
         epoching=1,
-        GFP=0,  # Global Field Power
-        TFR=0,  # Time-Frequency Response for each epoch
-        TFR_av=0,  # Time-Frequency Response Averaging
-        TFR_stats=0,  # Compute inter-trials statistics on TFR
         cla_ERP_TS_LR=0,
-        intra_subject=0, # set to 1 to compute data for inter_subjects. if 0, will try to load data from file
-        prepare_inter_subject = 0, # required to save the data for inter_subject.  if 0, will try to load data from file
-        inter_subject=1,  # 1 for inter-subjects/inter-dataset classif
-        inter_subject_classif = 0, # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
-        inter_subject_analysis = 1 # performs shorter classification and analysis of the features for interpretation
+        prepare_inter_subject = 1,    # required to save the data for inter_subject.  if 0, will try to load data from file
+        INTER_SUBJECT=1,              # 1 for inter-subjects/inter-dataset classif. if 0 will skip all the following operations
+        inter_subject_classif = 1,    # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
+        inter_subject_regression = 0, # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
+        inter_subject_analysis = 0    # performs shorter classification and analysis of the features for interpretation
     )
 
 
@@ -92,7 +89,7 @@ if __name__ == '__main__':
     groups = []   # for cross-validation segmentation
     subjects_names = [] # to track in inter_subject
 
-    if operations_to_apply["intra_subject"]:
+    if operations_to_apply["INTRA_SUBJECT"]:
         print("Compute all intra-subject operations")
         #==============================================================================
         # DATASET LOOP
@@ -306,7 +303,7 @@ if __name__ == '__main__':
 
     else:
         print("Intra-subjects operations skipped")
-        if operations_to_apply["inter_subject"]:
+        if operations_to_apply["INTER_SUBJECT"]:
             print("Loading the inter-subject data from pickle")
 
             filepkl = open(os.path.join(output_dir, resultsID, "all_X.pkl"), 'rb')
@@ -321,7 +318,7 @@ if __name__ == '__main__':
             subjects_names = pickle.load(filepkl)
             filepkl.close()
 
-    if operations_to_apply["inter_subject"]:
+    if operations_to_apply["INTER_SUBJECT"]:
         import sklearn.metrics as metrics
 
         if operations_to_apply["inter_subject_classif"]:
@@ -652,6 +649,103 @@ if __name__ == '__main__':
             pd_results = pd_results.append(pd.DataFrame(resultsDict))
 
             pd_results.to_csv(os.path.join(output_dir,resultsID,"results_classif.csv"))
+
+        if operations_to_apply["inter_subject_regression"]:
+
+            pd_results = pd.DataFrame()
+            PipelineNb = -1
+            ##0
+            PipelineTitle = "reg_CSP"
+            PipelineNb = PipelineNb + 1
+            doGridSearch = 0
+            n_splits = 5
+            # ----------------------------
+            # step-1: organize group-based data
+            # ----------------------------
+            X = np.concatenate(all_X)
+            y = np.concatenate(all_y)
+
+            # ----------------------------
+            # step0: Prepare pipeline (hyperparameters & CV)
+            # ----------------------------
+            groups = []
+            groups_names = []
+            for i in range(len(all_y)):
+                n_epochs = all_y[i].shape[0]
+                groups = np.concatenate((groups, [i] * n_epochs))  # assign each subject to a specific group
+                groups_names = np.concatenate((groups_names, [subjects_names[i]] * n_epochs))  # name group
+
+            if amplitudeThreshold is not None:
+                tokeep = (np.linalg.norm(X, axis=(2)) < amplitudeThreshold).any(axis=1)  # remove any epoch with a large amplitude
+                groups = groups[tokeep]
+                groups_names = groups_names[tokeep]
+                X = X[tokeep, :]
+                y = y[tokeep]
+
+            inner_cv = sklearn.model_selection.GroupKFold(n_splits=n_splits)  # KFOLD with respect to the user
+            outer_cv = sklearn.model_selection.GroupKFold(n_splits=n_splits)
+
+            # hyperparameters kept here for compatibility
+            # TODO: use function to integrate hyperparameters more easily using get_params and homemade set_params
+
+            hyperparameters = {}
+
+            init_params = {}
+            for item in hyperparameters:
+                init_params[item] = hyperparameters[item][0]
+
+            # ----------------------------
+            # step1: Prepare pipeline & inputs
+            # ----------------------------
+
+            # check cross validation
+            fig, ax = plt.subplots()
+            zeta.viz.classif.plot_cv_indices(outer_cv, X, y, ax=ax, group=groups)
+            import pyriemann
+
+            pipeline = zeta.pipelines.CreatesFeatsPipeline(PipelineTitle, init_params=init_params)
+
+            # ----------------------------
+            # step2: GridSearch
+            # ----------------------------
+
+            if doGridSearch:
+                pipeline = sklearn.model_selection.GridSearchCV(pipeline, hyperparameters, cv=inner_cv, scoring='r2')
+
+            # ----------------------------
+            # step3: Predict in CV
+            # ----------------------------
+
+            time1 = time.time()
+            predicted = sklearn.model_selection.cross_val_predict(pipeline, X=X, y=y, cv=outer_cv, groups=groups)
+            time2 = time.time()
+
+            # ----------------------------
+            # step4: PRINT RESULTS
+            # ----------------------------
+            print(PipelineTitle + ' in %f' % (time2 - time1) + 's')
+
+            # TODO: may be necessary to explicit the CV loop as scoring on whole cv is biaised and doesn't inform to the
+            # TODO: behaviour of the classification in CV
+            # report = zeta.viz.classif.ShowClassificationResults(y, predicted, PipelineTitle=PipelineTitle, ax=None)
+            score = metrics.r2_score(y, predicted)
+            print("r_square %.3f" % score)
+
+            # ----------------------------
+            # step5: Save
+            # ----------------------------
+            pipelineERP = pipeline
+            predictedERP = predicted
+
+            resultsDict = {"subject": groups_names, "target": y, "predicted": np.squeeze(predicted),
+                           "pipeline_nb": PipelineNb, "pipeline": PipelineTitle, "r2": score}
+            pd_results = pd_results.append(pd.DataFrame(resultsDict))
+
+            pd_results.to_csv(os.path.join(output_dir,resultsID,"results_regression.csv"))
+
+            plt.figure()
+            plt.scatter(y,predicted)
+
 
         if operations_to_apply["inter_subject_analysis"]:
             print("inter_subject_analysis")

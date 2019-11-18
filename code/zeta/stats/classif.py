@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import sklearn
 import os
 
-def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_name = "test"):
+def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_name = "test", doClassif = False, legend = ['A', 'B']):
     """Computes the Common Spatial Pattern (CSP) on all data and print the most discriminant feature and
     performs a simple CSP+Logistic Regression Classification. The results will be stacked for all subjects
     at the end of pipeline_1.
@@ -21,7 +21,7 @@ def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_nam
     another reading for CSP decoding
     https://www.nmr.mgh.harvard.edu/mne/dev/auto_examples/decoding/plot_decoding_csp_eeg.html
     """
-    auc = []
+    score = []
     X = epochs.get_data()
     # run CSP
     zeta.util.blockPrint()  # to clean the terminal
@@ -30,6 +30,7 @@ def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_nam
     zeta.util.enablePrint()  # restore print
 
     # compute spatial filtered spectrum for each components
+    fig = []
     for indc in range(n_components):
         po = []
         for x in X:
@@ -52,7 +53,7 @@ def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_nam
         else:
             sign = -1.0
 
-        fig, ax_topo = plt.subplots(1, 1, figsize=(12, 4))
+        fig[indc], ax_topo = plt.subplots(1, 1, figsize=(12, 4))
         title = 'Spatial Pattern'
         fig.suptitle(title, fontsize=14)
         img, _ = mne.viz.topomap.plot_topomap(sign * pattern, epos, axes=ax_topo, show=False)
@@ -78,21 +79,22 @@ def spatio_spectral_patterns(epochs,y, n_components = 4, output_dir="", test_nam
         ax_spectrum.set_xlabel('Frequency (Hz)')
         ax_spectrum.set_ylabel('Power (dB)')
         plt.grid()
-        plt.legend(['A', 'B'])
+        plt.legend(legend)
 
         # plt.show()
         plt.savefig( os.path.join(output_dir, 'spatial_pattern_subject_' + test_name +
                     '_c' + str(indc) + '.png'), bbox_inches='tight')
 
     # run cross validation
-    #zeta.util.blockPrint()  # to have a clean terminal
-    """
-    clf = sklearn.pipeline.make_pipeline(mne.decoding.CSP(n_components=n_components),
-                                         sklearn.linear_model.LogisticRegression(solver="lbfgs"))
-    cv = sklearn.model_selection.StratifiedKFold(n_splits=5)
-    auc.append(sklearn.model_selection.cross_val_score(clf, X, y, cv=cv, scoring='roc_auc').mean())
-    zeta.util.enablePrint()
-    
+    if doClassif:
+        zeta.util.blockPrint()  # to have a clean terminal
 
-    print(test_name + " : AUC cross val score : %.3f" % (auc[-1]))
-    """
+        clf = sklearn.pipeline.make_pipeline(mne.decoding.CSP(n_components=n_components),
+                                             sklearn.linear_model.LogisticRegression(solver="lbfgs"))
+        cv = sklearn.model_selection.StratifiedKFold(n_splits=5)
+        score = sklearn.model_selection.cross_val_score(clf, X, y, cv=cv, scoring='roc_auc')
+        zeta.util.enablePrint()
+
+        print(test_name + " : AUC cross val score : %.3f" % (score.mean()))
+
+    return fig, score

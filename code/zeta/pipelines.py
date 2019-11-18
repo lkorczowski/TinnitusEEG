@@ -48,11 +48,18 @@ def CreatesFeatsPipeline(pipe_name, init_params=None):
             ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
             , ('MDM', pyriemann.classification.MDM())
         ])
+    elif pipe_name == 'reg_CSP':
+        # pipeline using Xdawn in the tangent space (regression)
+        pipeline = sklearn.pipeline.Pipeline([
+            ("cov", pyriemann.estimation.Covariances(estimator='lwf'))
+            , ('CSP', pyriemann.spatialfilters.CSP(nfilter=12,log=False))
+            , ('TS', pyriemann.tangentspace.TangentSpace())
+            , ('LASSO', sklearn.linear_model.LassoCV())
+        ])
     elif pipe_name == 'reg_ERP':
         # pipeline using Xdawn in the tangent space (regression)
         pipeline = sklearn.pipeline.Pipeline([
-            ('preproc', Epochs2signals())
-            , ('xdawn', XdawnCovariancesRegression())
+            ('xdawn', pyriemann.estimation.XdawnCovariances(estimator='lwf', xdawn_estimator='lwf'))
             , ('TS', pyriemann.tangentspace.TangentSpace())
             , ('LASSO', sklearn.linear_model.LassoCV())
         ])

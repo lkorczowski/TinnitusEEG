@@ -209,7 +209,8 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
     else:
         print("get_subjects_info: unknown dataset")
     if format == "DataFrame":
-        subjects_info
+        subjects_info = _subjects_dict_to_pandas(subjects_info)
+
     return subjects_info
 
 
@@ -334,7 +335,12 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
         event_id0 = None
     elif dataset_id is "Tinnitus_EEG":
         print("get_dataset_distress warning: Tinnitus_EEG distress scale hardcoded, please add the distress level")
-        eventcode = 1
+
+        subjects_csv = pd.read_csv(os.path.join(data_folder, dataset_id,"labels_name_cat_TQ_vas.csv"),
+                                    names=["session", "distress", "TQ", "VAS"], index_col="session")
+
+        eventcode = int(subjects_csv[subjects_csv.index.str.match(subject)]["distress"].values[0]) # find eventcode from distress value
+
         event_id0 = None
     elif dataset_id is "NormativeDB":
         eventcode = 0
@@ -667,13 +673,13 @@ if __name__ == '__main__':
         print(df_subjects.index.get_level_values("subject").to_list())
 
         # example of query
-        criterion1 = df_subjects["symptoms"].map(lambda x: {'distress': 1} in x)
+        criterion1 = df_subjects["symptoms"].map(lambda x: ({'distress': 1} in x) | ({'distress': 2} in x))
 
         print(df_subjects[(criterion1)])
 
         # get the raw data from the query
 
-        subject = df_subjects[(criterion1)].index.get_level_values("subject").to_list()[0]
+        subject = df_subjects[(criterion1)].index.get_level_values("subject").to_list()[1]
         print(load_sessions_raw(data_dir, dataset_name, subject))
         raw_0, _ , events0, _ = get_raw(data_dir, dataset_name, subject)
         epochs = mne.Epochs(raw_0 ,events0, tmin=0, tmax=2, baseline=(None,0))

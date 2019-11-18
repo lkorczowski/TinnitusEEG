@@ -5,6 +5,7 @@ Analysis of the results of pipeline_4_classif
     Louis Korczowski <louis.korczowski@gmail.com>
 
 :history:
+    | v1.0 2019-11-12 from pipeline_4 auc=0.927 to auc 0.932 with adaboost
     | v0.1 2019-11-11 pipeline creation
 """
 
@@ -51,10 +52,53 @@ if __name__ == '__main__':
     fig_dir = output_dir + os.path.sep + resultsID + os.path.sep  # pipeline output directory
     zeta.util.mkdir(fig_dir)  # create results directory if needed
 
-    pd_results = pd.read_csv(os.path.join(output_dir, "results_classif.csv"))
+    pd_results = pd.read_csv(os.path.join(output_dir,resultsID, "results_classif.csv"))
 
     subjects = pd_results["subject"].unique()
     pipeline_nb = pd_results["pipeline_nb"].unique()
+
+    # create a new dataset from different pipelines
+    y_pip = []
+    data_pip = []
+    acc_pip = []
+    roc_auc = []
+
+    plt.close("all")
+    for indp in pipeline_nb:
+        pip_name = pd_results.loc[(pd_results["pipeline_nb"] == indp)]["pipeline"].values[0]
+        data_pip.append(pd_results.loc[(pd_results["pipeline_nb"] == indp)]["predicted"].values)
+        y_pip.append(pd_results.loc[(pd_results["pipeline_nb"] == indp)]["target"].values)
+        #acc.append(sklearn.metrics.accuracy_score(y_pip[-1],data_pip[-1]))
+
+        fpr, tpr, thresholds = sklearn.metrics.roc_curve(y_pip[-1], data_pip[-1])
+
+        roc_auc.append(sklearn.metrics.auc(fpr, tpr))
+        print("Area under the ROC curve for pipeline %i : %f" % (indp, roc_auc[-1]))
+
+        ####################################
+        # The optimal cut off would be where tpr is high and fpr is low
+        # tpr - (1-fpr) is zero or near to zero is the optimal cut off point
+        ####################################
+        i = np.arange(len(tpr))  # index for df
+        roc = pd.DataFrame(
+            {'fpr': pd.Series(fpr, index=i), 'tpr': pd.Series(tpr, index=i), '1-fpr': pd.Series(1 - fpr, index=i),
+             'tf': pd.Series(tpr - (1 - fpr), index=i), 'thresholds': pd.Series(thresholds, index=i)})
+        print(roc.ix[(roc.tf - 0).abs().argsort()[:1]])
+        best_threshold = roc.ix[(roc.tf - 0).abs().argsort()[:1]]["thresholds"].values[0]
+        acc = []
+        for thr in thresholds:
+            acc.append(sklearn.metrics.accuracy_score(y_pip[-1],(data_pip[-1]>thr).astype(int)))
+        acc_pip.append(max(acc))
+        # Plot tpr vs 1-fpr
+        fig, ax = plt.subplots()
+        plt.plot(roc["thresholds"], roc['tpr'])
+        plt.plot(roc["thresholds"], roc['1-fpr'], color='red')
+        plt.xlabel('Threshold')
+        plt.ylabel('Rate')
+        plt.legend(["tpr", "1-fpr"])
+        plt.title(pip_name + str(indp) + ': True and False Positive Rate, auc %.3f, acc %.3f'%(roc_auc[-1],acc_pip[-1]))
+        plt.savefig(os.path.join(output_dir,resultsID,"auc_curve"  + pip_name + str(indp)))
+
 
     # create a new dataset from different pipelines
     data = []
