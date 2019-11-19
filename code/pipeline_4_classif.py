@@ -6,6 +6,7 @@ Classify the data of a given dataset (intra or inter-subject level).
     Louis Korczowski <louis.korczowski@gmail.com>
 
 :history:
+    | v3.2 2019-11-19 label mapping to convert regression targets to binary targets
     | v3.1 2019-11-13 added group-level regression
     | v3.0 2019-11-11 Tinnitus_EEG versus NormativeDB: AUC: 0.926
     | v2.5 2019-10-29 Multi-pipeline integration and results reporting
@@ -53,9 +54,16 @@ if __name__ == '__main__':
 
     datasetnames = ["Tinnitus_EEG"]
 
-    resultsID = 'test2'  # set ID for output directory (will remplace any former results with same ID)
+    resultsID = 'test3'  # set ID for output directory (will remplace any former results with same ID)
     ForceSave = True  # if set True, will overwrite previous results in Pickle
     SaveFig = False  # if set True, will overwrite previous figure in folder  resultsID
+
+    # target mapping to convert y (e.g. change number from regression to binary)
+    # see zeta.data.stim.map_target() for more info
+    # set to None if you want to not change targets
+    mapping = {1: 0, 2: 0, 3: 1, 4: 1}
+    if mapping is not None:
+        print("WARNING: ALL TARGET WILL BE CONVERTED")
 
     verbose = 'ERROR'
 
@@ -71,7 +79,7 @@ if __name__ == '__main__':
     max_epochs = 50                   # WARNING: just to speed up computation
     amplitudeThreshold =  None        # max RMS amplitude in a given epoch (set to value supérieur of 50 to remove artifacts)
     operations_to_apply = dict(
-        INTRA_SUBJECT=0,              # set to 1 to compute data for inter_subjects. if 0, will try to load data from file and will skip all following operations
+        INTRA_SUBJECT=1,              # set to 1 to compute data for inter_subjects. if 0, will try to load data from file and will skip all following operations
         epoching=1,
         cla_ERP_TS_LR=0,
         prepare_inter_subject = 1,    # required to save the data for inter_subject.  if 0, will try to load data from file
@@ -321,7 +329,15 @@ if __name__ == '__main__':
     if operations_to_apply["INTER_SUBJECT"]:
         import sklearn.metrics as metrics
 
+        # map loaded y if required (e.g. regression targets to classification targets [1, 2, 3, 4] -> [0, 0, 1, 1]
+
         if operations_to_apply["inter_subject_classif"]:
+            # ----------------------------
+            # step-1: organize group-based data (done once) & preparation
+            # ----------------------------
+            X = np.concatenate(all_X)
+            y = np.concatenate(all_y)   # note that all_y is required to estimate the cross-val groups but only the shape is important
+            y = zeta.data.stim.map_targets(y, mapping=mapping)  # convert target if required
 
             pd_results = pd.DataFrame()
             PipelineNb = -1
@@ -330,11 +346,7 @@ if __name__ == '__main__':
             PipelineNb = PipelineNb + 1
             doGridSearch = 0
             n_splits = 5
-            # ----------------------------
-            # step-1: organize group-based data
-            # ----------------------------
-            X = np.concatenate(all_X)
-            y = np.concatenate(all_y)
+
 
             # ----------------------------
             # step0: Prepare pipeline (hyperparameters & CV)
@@ -410,11 +422,6 @@ if __name__ == '__main__':
             PipelineNb = PipelineNb + 1
             doGridSearch = 0
             n_splits = 5
-            # ----------------------------
-            # step-1: organize group-based data
-            # ----------------------------
-            X = np.concatenate(all_X)
-            y = np.concatenate(all_y)
 
             # ----------------------------
             # step0: Prepare pipeline (hyperparameters & CV)
@@ -491,11 +498,7 @@ if __name__ == '__main__':
             PipelineNb = PipelineNb + 1
             doGridSearch = 1
             n_splits = 5
-            # ----------------------------
-            # step-1: organize group-based data
-            # ----------------------------
-            X = np.concatenate(all_X)
-            y = np.concatenate(all_y)
+
 
             # ----------------------------
             # step0: Prepare pipeline (hyperparameters & CV)
@@ -572,11 +575,7 @@ if __name__ == '__main__':
             PipelineNb = PipelineNb + 1
             doGridSearch = 0
             n_splits = 5
-            # ----------------------------
-            # step-1: organize group-based data
-            # ----------------------------
-            X = np.concatenate(all_X)
-            y = np.concatenate(all_y)
+
 
             # ----------------------------
             # step0: Prepare pipeline (hyperparameters & CV)
@@ -651,6 +650,12 @@ if __name__ == '__main__':
             pd_results.to_csv(os.path.join(output_dir,resultsID,"results_classif.csv"))
 
         if operations_to_apply["inter_subject_regression"]:
+            # ----------------------------
+            # step-1: organize group-based data (done once) & preparation
+            # ----------------------------
+            X = np.concatenate(all_X)
+            y = np.concatenate(all_y)   # note that all_y is required to estimate the cross-val groups but only the shape is important
+            y = zeta.data.stim.map_targets(y, mapping=mapping)  # convert target if required
 
             pd_results = pd.DataFrame()
             PipelineNb = -1
@@ -659,11 +664,6 @@ if __name__ == '__main__':
             PipelineNb = PipelineNb + 1
             doGridSearch = 0
             n_splits = 5
-            # ----------------------------
-            # step-1: organize group-based data
-            # ----------------------------
-            X = np.concatenate(all_X)
-            y = np.concatenate(all_y)
 
             # ----------------------------
             # step0: Prepare pipeline (hyperparameters & CV)
