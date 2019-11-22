@@ -214,7 +214,7 @@ def get_subjects_info(data_folder, dataset_id, format="dict"):
     return subjects_info
 
 
-def get_raw(data_folder, dataset_id, subject):
+def get_raw(data_folder, dataset_id, subject, stim_type="distress"):
     """loads the subject data (raw and events) from a given dataset and organize it into several conditions if available
 
     raw_0, raw_1, events0, events1 = get_raw(data_folder, dataset_id, subject)
@@ -227,6 +227,11 @@ def get_raw(data_folder, dataset_id, subject):
         dataset_id code used in zeta module. Use get_dataset_list(data_folder) to find it.
     subject : str | int
         subject id (str) or its index (int) in the dataset.
+    stim_type : str (default: "distress")
+        name of the labels to load in epoch.events, possible:
+        "distress": category (0 for control ; 1, 2, 3, 4 for tinnitus distress category)
+        "TQ": TQ scale
+        "VAS": VAS score
 
     Returns
     -------
@@ -238,7 +243,8 @@ def get_raw(data_folder, dataset_id, subject):
     if dataset_id in ["raw_clean_32"]: #two conditions experiments
         raw_0, raw_1, events0, events1 = get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False)
     elif dataset_id in ["Distress2010","NormativeDB","Tinnitus_EEG"]:
-        raw_0, raw_1, events0, events1 = get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False)
+        raw_0, raw_1, events0, events1 = get_dataset_distress(data_folder, dataset_id,
+                                                              subject, stim_type=stim_type, ShowFig=False)
     else:
         print(dataset_id + ": Unknown dataset, please check compatible dataset using get_dataset_list().")
         print(dataset_id + ": if you want, you can add this dataset to get_dataset_list() and get_raw(),")
@@ -302,7 +308,7 @@ def get_dataset_low_v_high(data_folder, dataset_id, subject, ShowFig=False):
     return raw_0, raw_1, events0, events1
 
 
-def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
+def get_dataset_distress(data_folder, dataset_id, subject, stim_type="distress", ShowFig=False):
     """ Load Low Versus High Distress Tinnitus patient and control.
 
     Note here that the EEG data are in µV while MNE use V. Therefore scale
@@ -339,7 +345,7 @@ def get_dataset_distress(data_folder, dataset_id, subject, ShowFig=False):
         subjects_csv = pd.read_csv(os.path.join(data_folder, dataset_id,"labels_name_cat_TQ_vas.csv"),
                                     names=["session", "distress", "TQ", "VAS"], index_col="session")
 
-        eventcode = int(subjects_csv[subjects_csv.index.str.match(subject)]["distress"].values[0]) # find eventcode from distress value
+        eventcode = int(subjects_csv[subjects_csv.index.str.match(subject)][stim_type].values[0]) # find eventcode from distress value
 
         event_id0 = None
     elif dataset_id is "NormativeDB":

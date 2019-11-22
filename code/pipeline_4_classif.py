@@ -54,16 +54,13 @@ if __name__ == '__main__':
 
     datasetnames = ["Tinnitus_EEG"]
 
-    resultsID = 'test3'  # set ID for output directory (will remplace any former results with same ID)
-    ForceSave = True  # if set True, will overwrite previous results in Pickle
+    resultsID = 'TQ_regression'  # set ID for output directory (will remplace any former results with same ID)
+    ForceSave = True  # if set True, will overwrite previous results in Pickle (required for saving epochs)
     SaveFig = False  # if set True, will overwrite previous figure in folder  resultsID
 
     # target mapping to convert y (e.g. change number from regression to binary)
     # see zeta.data.stim.map_target() for more info
-    # set to None if you want to not change targets
-    mapping = {1: 0, 2: 0, 3: 1, 4: 1}
-    if mapping is not None:
-        print("WARNING: ALL TARGET WILL BE CONVERTED")
+    # set to None if you want to not change target
 
     verbose = 'ERROR'
 
@@ -78,15 +75,20 @@ if __name__ == '__main__':
     n_minimum_epochs_to_classif=1     # assess the minimal number of extracted epochs per class to perform a valid cross-validation
     max_epochs = 50                   # WARNING: just to speed up computation
     amplitudeThreshold =  None        # max RMS amplitude in a given epoch (set to value supérieur of 50 to remove artifacts)
+    stim_type = "TQ"                  # type of labels for regression (e.g. "distress" (default), "TQ", or "VAS")
+    # dict or list to convert labels e.g. {1: 0, 2: 0, 3: 1, 4: 1}
+    mapping = None
+    if mapping is not None:
+        print("WARNING: ALL TARGET WILL BE CONVERTED")
     operations_to_apply = dict(
         INTRA_SUBJECT=1,              # set to 1 to compute data for inter_subjects. if 0, will try to load data from file and will skip all following operations
         epoching=1,
         cla_ERP_TS_LR=0,
-        prepare_inter_subject = 1,    # required to save the data for inter_subject.  if 0, will try to load data from file
+        prepare_inter_subject=1,    # required to save the data for inter_subject.  if 0, will try to load data from file
         INTER_SUBJECT=1,              # 1 for inter-subjects/inter-dataset classif. if 0 will skip all the following operations
-        inter_subject_classif = 1,    # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
-        inter_subject_regression = 0, # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
-        inter_subject_analysis = 0    # performs shorter classification and analysis of the features for interpretation
+        inter_subject_classif=0,    # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
+        inter_subject_regression=1, # performs all classification pipeline WARNING: requires several HOURS (required from pipeline_5)
+        inter_subject_analysis=0    # performs shorter classification and analysis of the features for interpretation
     )
 
 
@@ -132,7 +134,8 @@ if __name__ == '__main__':
                     fig_dir_sub = fig_dir + subject + os.path.sep
                     zeta.util.mkdir(fig_dir_sub)  # create results directory if needed
                     # load raw data
-                    raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject)
+                    raw_0, raw_1, events0, events1 = zeta.data.datasets.get_raw(data_dir, datasetname, subject,
+                                                                                stim_type=stim_type)
 
                     print(subject + ": data loaded")
                 except IndexError:
