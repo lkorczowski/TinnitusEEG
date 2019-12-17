@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     datasetnames = ["Tinnitus_EEG"]
 
-    resultsID = 'TQ_regression'  # set ID for output directory (will remplace any former results with same ID)
+    resultsID = 'VAS_regression'  # set ID for output directory (will remplace any former results with same ID)
     ForceSave = True  # if set True, will overwrite previous results in Pickle (required for saving epochs)
     SaveFig = False  # if set True, will overwrite previous figure in folder  resultsID
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     n_minimum_epochs_to_classif=1     # assess the minimal number of extracted epochs per class to perform a valid cross-validation
     max_epochs = 50                   # WARNING: just to speed up computation
     amplitudeThreshold =  None        # max RMS amplitude in a given epoch (set to value supérieur of 50 to remove artifacts)
-    stim_type = "TQ"                  # type of labels for regression (e.g. "distress" (default), "TQ", or "VAS")
+    stim_type = "VAS"                  # type of labels for regression (e.g. "distress" (default), "TQ", or "VAS" or None)
     # dict or list to convert labels e.g. {1: 0, 2: 0, 3: 1, 4: 1}
     mapping = None
     if mapping is not None:

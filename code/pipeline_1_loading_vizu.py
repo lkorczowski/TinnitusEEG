@@ -194,6 +194,10 @@ if __name__ == '__main__':
             # TIME-FREQUENCY ANALYSIS (TFR)
             #%%--------------------------
             if operations_to_apply["TFR"]:
+                """Apply averaged Morlet periodogram estimation to return the instantaneous power spectral density.
+                Epochs are averaged.
+                Save figures ONLY
+                """
     #            try:
                 options=dict(iter_freqs=iter_freqs,baseline=baseline,
                              tmin=tmin, tmax=tmax,ch_name='cz')
@@ -217,6 +221,10 @@ if __name__ == '__main__':
             n_cycles = freqs / 2.
 
             if operations_to_apply["TFR_av"]:
+                """Apply averaged Morlet periodogram estimation to return the instantaneous power spectral density.
+                Epochs are averaged.
+                Save Values ONLY
+                """
     #            try:
                 tfr_av0 = mne.time_frequency.tfr_morlet(epochs0, freqs,
                                           n_cycles=n_cycles, decim=decim,
@@ -341,7 +349,7 @@ if __name__ == '__main__':
                 X = epochs.get_data()
                 tmp = epochs.copy().drop(epochs.events[:, 2] < 0)  # remove bad epochs
                 y = tmp.events[:, 2]
-                spatio_spectral_patterns(epochs, y, n_components=4, output_dir="", test_name="test")
+                zeta.stats.classif.spatio_spectral_patterns(epochs, y, n_components=4, output_dir="", test_name="test")
         except:
             print('could load and process the subject '+ subject)
 
