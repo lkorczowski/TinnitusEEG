@@ -19,8 +19,8 @@ Vizualize data and performance event-related statistics
     | v0.2 2019-07-15 annotation to events convertion
     | v0.1 2019-07-11 pipeline creation
 
-PROPERTY OF Zeta Technologies
-CONFIDENTIAL
+PROPERTY OF Robin Guillard EIRL
+Provided only for public research purpose. Please contact the authors if you want to reuse that code.
 """
 #execution section
 import pandas as pd

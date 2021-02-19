@@ -13,8 +13,9 @@
     | v0.11 2019-08-28 removed omission frontiers module integration (see pipeline_3)
     | v0.1 2019-07-27 group-level integration with omission module
 
-PROPERTY OF Zeta Technologies
-CONFIDENTIAL
+PROPERTY OF Robin Guillard EIRL
+Provided only for public research purpose. Please contact the authors if you want to reuse that code.
+
 """
 # execution section
 if __name__ == '__main__':

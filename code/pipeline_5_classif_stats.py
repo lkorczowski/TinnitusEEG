@@ -7,6 +7,9 @@ Analysis of the results of pipeline_4_classif
 :history:
     | v1.0 2019-11-12 from pipeline_4 auc=0.927 to auc 0.932 with adaboost
     | v0.1 2019-11-11 pipeline creation
+
+PROPERTY OF Robin Guillard EIRL
+Provided only for public research purpose. Please contact the authors if you want to reuse that code.
 """
 
     # execution section

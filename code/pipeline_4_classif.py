@@ -20,6 +20,8 @@ Classify the data of a given dataset (intra or inter-subject level).
     | v0.5 2019-09-11 working xdawn+LR classification on lowVhigh dataset (AUC>0.9 for most subjects)
     | v0.1 2019-09-05 pipeline creation, integration with zeta.pipeline module
 
+PROPERTY OF Robin Guillard EIRL
+Provided only for public research purpose. Please contact the authors if you want to reuse that code
 """
 # execution section
 if __name__ == '__main__':
