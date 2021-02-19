@@ -1,6 +1,23 @@
 # TinnitusEEG
 
-Toolbox for EEG analysis (work for Robin Guillard EIRL)
+Toolbox for EEG analysis for finding markers of Tinnitus
+
+Authors: Louis Korczowski & Robin Guillard
+Owernship: Robin Guillard EIRL (all rights reserved), previously owned by Zeta Technology 
+
+- Code is shared as is for public research purpose and shouldn't be reproduced without the direct consent of the authors.
+- Use/reproduction by commercial companies is striclty prohibited (contact us if you want to use/understand that code).
+- EEG Data were shared to us for research purpose, we don't own the data
+
+# Goals
+
+- Be able to diffentiate EEG pattern of Tinnitus patients from non-Tinnitus patients (spatial, temporal and frequency patterns)
+- Maximize accuracy, robustness and "efficiency" of Tinnitus versus non-Tinnitus EEG classification using Riemmanian Geometry
+
+# Results
+- ROC AUC about 0.8 using only 2 seconds of EEG epochs (Tinnitus versus non-Tinnitus) using simple RG classif
+- increasing the number of epochs/length of epochs didn't increase significatively the AUC
+
 
 # Setting things up
 
