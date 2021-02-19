@@ -3,11 +3,12 @@
 Toolbox for EEG analysis for finding markers of Tinnitus
 
 Author: Louis Korczowski
-Owernship: Robin Guillard EIRL (all rights reserved), previously owned by Zeta Technology 
+
+Ownership: Robin Guillard EIRL (all rights reserved), previously owned by Zeta Technology 
 
 - Code is shared as is for public research purpose and shouldn't be reproduced without the direct consent of the authors.
 - Use/reproduction by commercial companies is strictly prohibited (contact us if you want to use/understand that code).
-- Some of the EEG Data were shared to us for research purpose (Thanks to S. Vanneste, D. De Ridder and M. Congedo)
+- Some of the EEG Data were shared to us for research purpose, we don't own them (Thanks to S. Vanneste, D. De Ridder and M. Congedo)
 
 # Goals
 
