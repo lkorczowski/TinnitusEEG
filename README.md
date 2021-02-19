@@ -11,7 +11,7 @@ Owernship: Robin Guillard EIRL (all rights reserved), previously owned by Zeta T
 
 # Goals
 
-- Be able to diffentiate EEG pattern of Tinnitus patients from non-Tinnitus patients (spatial, temporal and frequency patterns)
+- Be able to diffentiate EEG pattern of Tinnitus subjects from non-Tinnitus subjects (spatial, temporal and frequency patterns)
 - Maximize accuracy, robustness and "efficiency" of Tinnitus versus non-Tinnitus EEG classification using Riemmanian Geometry
 
 # Results
