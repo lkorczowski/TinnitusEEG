@@ -1,6 +1,6 @@
 # TinnitusEEG
 
-Zeta Technologies toolbox for EEG analysis
+Toolbox for EEG analysis (work for Robin Guillard EIRL)
 
 # Setting things up
 
